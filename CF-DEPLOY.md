@@ -87,6 +87,23 @@ npx wrangler pages deploy dist --project-name mwlc-tournament
 > 你最初报「上传器不支持需要构建流程的项目」就是因为拖的是**源码**（含 `.vue`）。拖 `dist` 是纯静态成品，直传完全接受，`_redirects` 也已包含在 dist 里（SPA 回退自动生效）。
 > 缺点：每次更新都要本地重新构建再上传，没有自动 CI。
 
+#### ⚠️ 怎么判断自己传对了（上传错目录的典型症状）
+
+传错的表现：线上页面报浏览器错误
+
+```
+Failed to resolve module specifier "vue"
+ERR_BLOCKED_BY_CLIENT
+```
+
+（`Failed to resolve module specifier "vue"` = 浏览器加载到了**未构建的源码**，源码里的 `import 'vue'` 只有打包器能解析；`ERR_BLOCKED_BY_CLIENT` 是广告拦截器拦截请求，与代码无关。）
+
+验证方法：打开线上地址 → 右键 → **查看网页源代码**，看 script 标签：
+- ✅ 正确：`<script type="module" crossorigin src="/assets/index-xxx.js">`
+- ❌ 传错：`<script type="module" src="/src/main.js">` → 说明上传的是 `frontend` 源码目录，重新上传 `frontend/dist` 的**内容**（index.html + assets/ 文件夹）
+
+本地预览的正确姿势：`npm run dev`（Vite，端口 5173）或 `node preview-server.js`（托管 dist，端口 8080），**不要直接双击 `frontend/index.html`**（file:// 打开源码会报上面的错）。
+
 ### 方式 B：Git 集成（每次 push 自动构建）
 
 1. 把项目推送到 GitHub/GitLab；

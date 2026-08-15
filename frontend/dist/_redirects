@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA fallback: serve index.html for all unmatched paths
+# (deep links like /rules/default must not 404 on refresh)
+/* /index.html 200
