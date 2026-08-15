@@ -1,0 +1,5 @@
+# Cloudflare Pages 项目配置（用于 wrangler 从 frontend 目录部署）
+# 用法: 在 frontend 目录执行  npx wrangler pages deploy
+name = "mwlc-tournament"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-01-01"
