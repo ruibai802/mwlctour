@@ -178,7 +178,7 @@
 # MWLC runtime data（运行期数据不入库）
 backend/data/
 backend/uploads/
-uploads/
+/uploads/
 backend.log
 
 # frontend/dist 构建成品入库（作为 Cloudflare 云端构建失败时的兜底）

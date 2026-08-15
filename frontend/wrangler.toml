@@ -1,5 +1,19 @@
-# Cloudflare Pages 项目配置（用于 wrangler 从 frontend 目录部署）
-# 用法: 在 frontend 目录执行  npx wrangler pages deploy
-name = "mwlc-tournament"
+# Cloudflare Pages 项目配置（frontend 目录）
+# 部署: npx wrangler pages deploy   （需先创建 D1 数据库与 R2 桶并填入下方 ID）
+name = "mwlctour"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-01-01"
+
+# D1 数据库（替代本地 SQLite）
+# 创建: npx wrangler d1 create mwlc-db
+# 初始化: npx wrangler d1 execute mwlc-db --remote --file migrations/0001_init.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "mwlc-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# R2 存储（替代本地 uploads/ 目录）
+# 创建: npx wrangler r2 bucket create mwlc-uploads
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "mwlc-uploads"
