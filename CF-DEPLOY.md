@@ -104,11 +104,15 @@ ERR_BLOCKED_BY_CLIENT
 
 本地预览的正确姿势：`npm run dev`（Vite，端口 5173）或 `node preview-server.js`（托管 dist，端口 8080），**不要直接双击 `frontend/index.html`**（file:// 打开源码会报上面的错）。
 
-### 方式 B：Git 集成（每次 push 自动构建）
+### 方式 B：Git 集成（每次 push 自动构建）⭐ 推荐（本仓库已推送到 GitHub）
 
-1. 把项目推送到 GitHub/GitLab；
-2. Cloudflare 控制台 → **Workers & Pages → Create → Pages → Connect to Git**；
-3. 选择仓库，**构建配置务必按下表填**（Cloudflare 新版构建系统把「构建命令」和「部署命令」分开了，两个都要正确）：
+> 仓库已就绪：`https://github.com/你的用户名/mwlctour`（main 分支）。已做两件事：
+> 1. **`frontend/dist` 成品已入库**（作为云端构建失败时的兜底，构建成功时会被覆盖）；
+> 2. **`uploads/`、`backend/data/` 等运行时文件已移出仓库**（保持仓库干净）。
+
+1. Cloudflare 控制台 → **Workers & Pages → Create → Pages → Connect to Git**；
+2. 授权 GitHub → 选择 `mwlctour` 仓库；
+3. **构建配置务必按下表填**（Cloudflare 新版构建系统把「构建命令」和「部署命令」分开了，两个都要正确）：
 
    | 配置项 | 填写值 | 说明 |
    |--------|--------|------|
