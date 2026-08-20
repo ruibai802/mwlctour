@@ -138,7 +138,7 @@ async function load() {
       getMatch(route.params.id),
       getGroupList(),
       getTeamList(),
-      getStaff(),
+      auth.isAdmin ? getStaff() : Promise.resolve([]),
       getPlayers(),
       getSettings()
     ])
@@ -348,7 +348,7 @@ onMounted(load)
           <span v-if="match.winner">胜者：{{ match.winner }}</span>
           <span v-if="match.remark">备注：{{ match.remark }}</span>
         </div>
-        <button class="btn btn-sm" @click="openEdit">编辑比赛 / 录入比分</button>
+        <button v-if="auth.isAdmin || myAnyClaim" class="btn btn-sm" @click="openEdit">编辑比赛 / 录入比分</button>
       </div>
 
       <!-- 接取日程 -->
@@ -358,7 +358,7 @@ onMounted(load)
           <span class="tag" :class="{ 'tag-ok': match.claimed_referee_name }">裁判：{{ match.claimed_referee_name || '未接取' }}</span>
           <span class="tag" :class="{ 'tag-ok': match.claimed_recorder_name }">录像：{{ match.claimed_recorder_name || '未接取' }}</span>
         </div>
-        <div class="claim-actions">
+        <div v-if="auth.isAdmin || auth.user?.role === 'official'" class="claim-actions">
           <button class="btn btn-sm btn-primary" :disabled="claimedReferee || !!match.claimed_referee_id" @click="doClaim('referee')">
             {{ claimedReferee ? '✔ 已以裁判接取' : (match.claimed_referee_id ? '裁判已接取' : '以裁判接取') }}
           </button>
@@ -420,7 +420,7 @@ onMounted(load)
       <div class="card-block">
         <div class="block-head">
           <h3>裁判 / 工作人员</h3>
-          <button class="btn btn-sm btn-primary" @click="openStaffForm">＋ 分配工作人员</button>
+          <button v-if="auth.isAdmin" class="btn btn-sm btn-primary" @click="openStaffForm">＋ 分配工作人员</button>
         </div>
         <table v-if="match.staff.length" class="table">
           <thead>
@@ -429,7 +429,7 @@ onMounted(load)
               <th>岗位</th>
               <th>已确认</th>
               <th>备注</th>
-              <th>操作</th>
+              <th v-if="auth.isAdmin">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -437,13 +437,14 @@ onMounted(load)
               <td>{{ ms.staff_name }}</td>
               <td>{{ roleLabel(ms.role) }}</td>
               <td>
-                <label class="check-inline">
+                <label v-if="auth.isAdmin" class="check-inline">
                   <input type="checkbox" :checked="!!ms.confirmed" @change="toggleStaffConfirm(ms)" />
                   {{ ms.confirmed ? '已确认' : '未确认' }}
                 </label>
+                <span v-else>{{ ms.confirmed ? '已确认' : '未确认' }}</span>
               </td>
               <td class="text-muted">{{ ms.ms_remark || '-' }}</td>
-              <td class="ops">
+              <td v-if="auth.isAdmin" class="ops">
                 <button class="btn btn-sm btn-danger" @click="removeStaff(ms)">移除</button>
               </td>
             </tr>
@@ -456,7 +457,7 @@ onMounted(load)
       <div class="card-block">
         <div class="block-head">
           <h3>出场选手</h3>
-          <button class="btn btn-sm btn-primary" @click="openPlayerForm">＋ 添加出场选手</button>
+          <button v-if="auth.isAdmin" class="btn btn-sm btn-primary" @click="openPlayerForm">＋ 添加出场选手</button>
         </div>
         <table v-if="match.players.length" class="table">
           <thead>
@@ -467,7 +468,7 @@ onMounted(load)
               <th>队伍</th>
               <th>位置</th>
               <th>确认</th>
-              <th>操作</th>
+              <th v-if="auth.isAdmin">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -480,7 +481,7 @@ onMounted(load)
               <td>{{ mp.team_name || '-' }}</td>
               <td class="mono">{{ mp.slot || '-' }}</td>
               <td><span class="text-muted">{{ mp.confirmed ? '已确认' : '未确认' }}</span></td>
-              <td class="ops">
+              <td v-if="auth.isAdmin" class="ops">
                 <button class="btn btn-sm btn-danger" @click="removePlayer(mp)">移除</button>
               </td>
             </tr>
@@ -493,7 +494,7 @@ onMounted(load)
       <div class="card-block">
         <div class="block-head">
           <h3>视频链接</h3>
-          <button class="btn btn-sm btn-primary" @click="openVideoCreate">＋ 添加视频</button>
+          <button v-if="auth.isAdmin || auth.user?.role === 'official'" class="btn btn-sm btn-primary" @click="openVideoCreate">＋ 添加视频</button>
         </div>
         <table v-if="match.videos.length" class="table">
           <thead>
@@ -503,7 +504,7 @@ onMounted(load)
               <th>链接</th>
               <th>平台</th>
               <th>上传人</th>
-              <th>操作</th>
+              <th v-if="auth.isAdmin || auth.user?.role === 'official'">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -513,7 +514,7 @@ onMounted(load)
               <td><a :href="v.url" target="_blank" rel="noopener" class="link">{{ v.url }}</a></td>
               <td>{{ v.platform || '-' }}</td>
               <td class="text-muted">{{ v.uploaded_by || '-' }}</td>
-              <td class="ops">
+              <td v-if="auth.isAdmin || auth.user?.role === 'official'" class="ops">
                 <button class="btn btn-sm" @click="openVideoEdit(v)">编辑</button>
                 <button class="btn btn-sm btn-danger" @click="removeVideo(v)">删除</button>
               </td>

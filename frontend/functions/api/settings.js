@@ -1,5 +1,5 @@
 // /api/settings — 赛事设置（规则内容/背景/地图/报名链接/多个赛事名）
-import { currentUser, canEditRules, json, unauthorized, forbidden } from '../_lib/auth.js'
+import { currentUser, isAdmin, json, unauthorized, forbidden } from '../_lib/auth.js'
 import { resolveTournamentId, getTournamentById, handleError } from '../_lib/util.js'
 
 // 读取赛事设置中的「多个赛事名」列表（settings 表 key = tournament_names）
@@ -39,7 +39,7 @@ export async function onRequestPut(context) {
   const { request, env } = context
   const user = await currentUser(request, env)
   if (!user) return unauthorized()
-  if (!canEditRules(user)) return forbidden('仅规则管理/管理员可执行此操作')
+  if (!isAdmin(user)) return forbidden('仅管理员可修改赛事设置')
   try {
     const t = await getTournamentById(env, await resolveTournamentId(request, env))
     let body

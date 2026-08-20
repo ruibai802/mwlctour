@@ -1,5 +1,5 @@
 // /api/uploads — 上传文件列表/上传（R2 存储）
-import { currentUser, isAdmin, ADMIN_ROLES, RULES_ROLES, json, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
+import { currentUser, isAdmin, ADMIN_ROLES, RULES_ROLES, canEditRules, json, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
 import { resolveTournamentId, handleError } from '../_lib/util.js'
 import { saveFile } from '../_lib/upload.js'
 
@@ -16,6 +16,7 @@ export async function onRequestGet(context) {
   const { request, env } = context
   const user = await currentUser(request, env)
   if (!user) return unauthorized()
+  if (!canEditRules(user)) return forbidden('仅管理员/规则管理可查看上传文件')
   try {
     const url = new URL(request.url)
     const type = url.searchParams.get('type')

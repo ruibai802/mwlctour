@@ -25,6 +25,7 @@ export async function onRequestGet(context) {
   const { request, env } = context
   const user = await currentUser(request, env)
   if (!user) return unauthorized()
+  if (!isAdmin(user)) return forbidden('仅管理员可查看工作人员名单')
   try {
     const url = new URL(request.url)
     const tid = await resolveTournamentId(request, env)
