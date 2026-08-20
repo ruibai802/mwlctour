@@ -90,3 +90,73 @@ export const getTournament = (code) => request(`/tournaments/${code}`)
 export const createTournament = (data) => request('/tournaments', { method: 'POST', body: JSON.stringify(data) })
 export const updateTournament = (id, data) => request(`/tournaments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteTournament = (id) => request(`/tournaments/${id}`, { method: 'DELETE' })
+
+// ===== 扩展模块：角色权限（RBAC）=====
+export const getMyPermissions = () => request('/auth/permissions')
+export const getRoleList = () => request('/roles')
+export const createRole = (data) => request('/roles', { method: 'POST', body: JSON.stringify(data) })
+export const updateRole = (id, data) => request(`/roles/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteRole = (id) => request(`/roles/${id}`, { method: 'DELETE' })
+export const getPermissions = () => request('/permissions')
+export const getRoleUsers = () => request('/roles/users')
+export const setUserRoles = (id, role_ids) => request(`/roles/users/${id}`, { method: 'PUT', body: JSON.stringify({ role_ids }) })
+
+// ===== 扩展模块：分组 =====
+export const getGroupList = () => request('/groups')
+export const createGroup = (data) => request('/groups', { method: 'POST', body: JSON.stringify(data) })
+export const updateGroup = (id, data) => request(`/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteGroup = (id) => request(`/groups/${id}`, { method: 'DELETE' })
+
+// ===== 扩展模块：工作人员与考勤 =====
+export const getStaff = (params = {}) => {
+  const q = new URLSearchParams(params).toString()
+  return request(`/staff${q ? `?${q}` : ''}`)
+}
+export const createStaff = (data) => request('/staff', { method: 'POST', body: JSON.stringify(data) })
+export const getStaffDetail = (id) => request(`/staff/${id}`)
+export const updateStaff = (id, data) => request(`/staff/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteStaff = (id) => request(`/staff/${id}`, { method: 'DELETE' })
+export const getAttendance = (params = {}) => {
+  const q = new URLSearchParams(params).toString()
+  return request(`/staff/attendance${q ? `?${q}` : ''}`)
+}
+export const recordAttendance = (data) => request('/staff/attendance', { method: 'POST', body: JSON.stringify(data) })
+export const deleteAttendance = (id) => request(`/staff/attendance/${id}`, { method: 'DELETE' })
+
+// ===== 扩展模块：队伍与队员 =====
+export const getTeamList = () => request('/teams')
+export const createTeam = (data) => request('/teams', { method: 'POST', body: JSON.stringify(data) })
+export const getTeamDetail = (id) => request(`/teams/${id}`)
+export const updateTeam = (id, data) => request(`/teams/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteTeam = (id) => request(`/teams/${id}`, { method: 'DELETE' })
+export const addTeamPlayer = (teamId, data) => request(`/teams/${teamId}/players`, { method: 'POST', body: JSON.stringify(data) })
+export const updateTeamPlayer = (teamPlayerId, data) => request(`/teams/players/${teamPlayerId}`, { method: 'PUT', body: JSON.stringify(data) })
+export const removeTeamPlayer = (teamPlayerId) => request(`/teams/players/${teamPlayerId}`, { method: 'DELETE' })
+
+// ===== 扩展模块：比赛 =====
+export const getMatches = (params = {}) => {
+  const q = new URLSearchParams(params).toString()
+  return request(`/matches${q ? `?${q}` : ''}`)
+}
+export const createMatch = (data) => request('/matches', { method: 'POST', body: JSON.stringify(data) })
+export const getMatch = (id) => request(`/matches/${id}`)
+export const updateMatch = (id, data) => request(`/matches/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteMatch = (id) => request(`/matches/${id}`, { method: 'DELETE' })
+export const addMatchStaff = (matchId, data) => request(`/matches/${matchId}/staff`, { method: 'POST', body: JSON.stringify(data) })
+export const updateMatchStaff = (matchId, staffId, data) => request(`/matches/${matchId}/staff/${staffId}`, { method: 'PUT', body: JSON.stringify(data) })
+export const removeMatchStaff = (matchId, staffId) => request(`/matches/${matchId}/staff/${staffId}`, { method: 'DELETE' })
+export const addMatchPlayer = (matchId, data) => request(`/matches/${matchId}/players`, { method: 'POST', body: JSON.stringify(data) })
+export const updateMatchPlayer = (matchId, playerRecId, data) => request(`/matches/${matchId}/players/${playerRecId}`, { method: 'PUT', body: JSON.stringify(data) })
+export const removeMatchPlayer = (matchId, playerRecId) => request(`/matches/${matchId}/players/${playerRecId}`, { method: 'DELETE' })
+export const addMatchVideo = (matchId, data) => request(`/matches/${matchId}/videos`, { method: 'POST', body: JSON.stringify(data) })
+export const updateVideo = (id, data) => request(`/videos/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteVideo = (id) => request(`/videos/${id}`, { method: 'DELETE' })
+export const addPenalty = (matchId, data) => request(`/matches/${matchId}/penalties`, { method: 'POST', body: JSON.stringify(data) })
+export const updatePenalty = (id, data) => request(`/penalties/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deletePenalty = (id) => request(`/penalties/${id}`, { method: 'DELETE' })
+
+// ===== 多规则（每赛事多份规则）=====
+export const getRules = () => request('/rules')
+export const createRule = (data) => request('/rules', { method: 'POST', body: JSON.stringify(data) })
+export const updateRule = (id, data) => request(`/rules/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteRule = (id) => request(`/rules/${id}`, { method: 'DELETE' })

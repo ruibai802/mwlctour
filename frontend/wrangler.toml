@@ -3,6 +3,7 @@
 name = "mwlctour"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 # D1 数据库（替代本地 SQLite）
 # 创建: npx wrangler d1 create mwlc-db
@@ -10,7 +11,7 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "mwlc-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "4da8b4a9-afe1-43f8-804a-c6acfb29e44e"
 
 # R2 存储（替代本地 uploads/ 目录）
 # 创建: npx wrangler r2 bucket create mwlc-uploads

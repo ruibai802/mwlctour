@@ -19,11 +19,6 @@ function format(t) {
 
 export async function onRequestGet(context) {
   const { request, env } = context
-  const url = new URL(request.url)
-  if (url.pathname.endsWith('/public')) {
-    const t = await getTournamentById(env, await resolveTournamentId(request, env))
-    return json(format(t))
-  }
   const user = await currentUser(request, env)
   if (!user) return unauthorized()
   const t = await getTournamentById(env, await resolveTournamentId(request, env))

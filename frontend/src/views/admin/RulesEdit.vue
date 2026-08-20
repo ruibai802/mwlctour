@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
@@ -13,15 +13,18 @@ import TableRow from '@tiptap/extension-table-row'
 import TableHeader from '@tiptap/extension-table-header'
 import TableCell from '@tiptap/extension-table-cell'
 import Image from '../../editor/imageExtension'
-import { getSettings, updateSettings, uploadEditorImage, getUploads, deleteUpload } from '../../api'
+import { getRules, createRule as apiCreateRule, updateRule as apiUpdateRule, deleteRule as apiDeleteRule, uploadEditorImage, getUploads, deleteUpload } from '../../api'
 
-const settings = ref({ rules_content: '', rules_background: '', tournament_name: '' })
+const rulesList = ref([])
+const currentRuleId = ref(null)
+const currentRule = computed(() => rulesList.value.find((r) => String(r.id) === String(currentRuleId.value)) || rulesList.value[0] || null)
 const loading = ref(true)
 const saving = ref(false)
 const msg = ref('')
 const err = ref('')
 const colorVal = ref('#000000')
 const bgColorVal = ref('#ffffff')
+const background = ref('')
 
 const editor = useEditor({
   content: '',
@@ -178,13 +181,15 @@ function applyBgColor(e) {
 }
 
 async function save() {
+  if (!currentRule.value) return
   saving.value = true
   msg.value = ''
   err.value = ''
   try {
-    await updateSettings({
-      rules_content: editor.value?.getHTML() || '',
-      rules_background: settings.value.rules_background
+    await apiUpdateRule(currentRule.value.id, {
+      title: currentRule.value.title,
+      content: editor.value?.getHTML() || '',
+      background: background.value
     })
     msg.value = '保存成功 ✅'
     setTimeout(() => (msg.value = ''), 2000)
@@ -195,9 +200,9 @@ async function save() {
 }
 
 async function saveBg(value) {
-  settings.value.rules_background = value
+  background.value = value
   try {
-    await updateSettings({ rules_background: value })
+    await save()
     msg.value = '背景已更新 ✅'
     setTimeout(() => (msg.value = ''), 2000)
   } catch (e) {
@@ -205,12 +210,103 @@ async function saveBg(value) {
   }
 }
 
+function applyRuleToEditor() {
+  const r = currentRule.value
+  background.value = (r && r.background) || ''
+  if (editor.value) {
+    editor.value.commands.setContent((r && r.content) || '')
+  }
+}
+
+async function saveRuleContent(rule) {
+  if (!rule || !editor.value) return
+  await apiUpdateRule(rule.id, {
+    title: rule.title,
+    content: editor.value.getHTML() || '',
+    background: background.value
+  })
+}
+
+async function switchRule(id) {
+  if (String(id) === String(currentRuleId.value)) return
+  err.value = ''
+  try {
+    if (currentRule.value && editor.value) await saveRuleContent(currentRule.value)
+    currentRuleId.value = String(id)
+    applyRuleToEditor()
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function createRule() {
+  err.value = ''
+  const title = window.prompt('请输入新规则的标题', '')
+  if (title === null) return
+  const t = String(title).trim()
+  if (!t) { err.value = '标题不能为空'; return }
+  try {
+    if (currentRule.value && editor.value) await saveRuleContent(currentRule.value)
+    const row = await apiCreateRule({ title: t })
+    await loadRules()
+    currentRuleId.value = String(row.id)
+    applyRuleToEditor()
+    msg.value = '规则已创建，可直接编辑内容'
+    setTimeout(() => (msg.value = ''), 2500)
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function renameRule() {
+  if (!currentRule.value) return
+  err.value = ''
+  const title = window.prompt('请输入新的规则标题', currentRule.value.title)
+  if (title === null) return
+  const t = String(title).trim()
+  if (!t) { err.value = '标题不能为空'; return }
+  try {
+    await saveRuleContent(currentRule.value)
+    const r = currentRule.value
+    await apiUpdateRule(r.id, { title: t })
+    const idx = rulesList.value.findIndex((x) => x.id === r.id)
+    if (idx >= 0) rulesList.value[idx] = { ...rulesList.value[idx], title: t }
+    msg.value = '标题已更新'
+    setTimeout(() => (msg.value = ''), 2000)
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function deleteRule() {
+  if (!currentRule.value) return
+  if (!window.confirm(`确定删除规则「${currentRule.value.title}」？删除后不可恢复。`)) return
+  err.value = ''
+  try {
+    const id = currentRule.value.id
+    await apiDeleteRule(id)
+    await loadRules()
+    currentRuleId.value = rulesList.value.length ? String(rulesList.value[0].id) : null
+    applyRuleToEditor()
+    msg.value = '规则已删除'
+    setTimeout(() => (msg.value = ''), 2000)
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function loadRules() {
+  const list = await getRules()
+  rulesList.value = Array.isArray(list) ? list : []
+  if (!rulesList.value.some((r) => String(r.id) === String(currentRuleId.value))) {
+    currentRuleId.value = rulesList.value.length ? String(rulesList.value[0].id) : null
+  }
+}
+
 onMounted(async () => {
   try {
-    settings.value = await getSettings()
-    if (editor.value) {
-      editor.value.commands.setContent(settings.value.rules_content || '')
-    }
+    await loadRules()
+    applyRuleToEditor()
   } catch (e) {
     err.value = e.message
   }
@@ -239,13 +335,34 @@ onBeforeUnmount(() => {
     <div v-if="loading" class="loading">加载中...</div>
 
     <div v-else class="editor-wrap card">
+      <div class="rules-manage">
+        <div class="rules-manage-head">
+          <span class="bg-label">规则：</span>
+          <div class="rules-tabs">
+            <button
+              v-for="r in rulesList"
+              :key="r.id"
+              class="bg-preset"
+              :class="{ active: String(currentRuleId) === String(r.id) }"
+              @click="switchRule(r.id)"
+            >{{ r.title }}</button>
+            <span v-if="!rulesList.length" class="text-muted">暂无规则</span>
+          </div>
+          <div class="rules-actions">
+            <button class="btn btn-sm btn-primary" @click="createRule">＋ 新建</button>
+            <button class="btn btn-sm" @click="renameRule" :disabled="!currentRule">改名</button>
+            <button class="btn btn-sm btn-danger" @click="deleteRule" :disabled="!currentRule">删除</button>
+          </div>
+        </div>
+      </div>
+
       <div class="bg-config">
         <span class="bg-label">页面背景：</span>
         <button
           v-for="p in bgPresets"
           :key="p.value"
           class="bg-preset"
-          :class="{ active: settings.rules_background === p.value }"
+          :class="{ active: background === p.value }"
           :style="p.value ? { background: p.value } : {}"
           @click="saveBg(p.value)"
         >{{ p.label }}</button>
@@ -337,6 +454,31 @@ onBeforeUnmount(() => {
 
 .editor-wrap {
   padding: 16px;
+}
+
+.rules-manage {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.rules-manage-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rules-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.rules-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .bg-config {

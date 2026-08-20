@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getTournament } from '../api'
 
 const route = useRoute()
+const router = useRouter()
 
 const tournament = ref(null)
 const loading = ref(true)
@@ -11,6 +12,7 @@ const error = ref('')
 const activeAnchor = ref('')
 const contentRef = ref(null)
 const toc = ref([])
+const currentRuleId = ref(null)
 
 const defaultFontSize = 16
 
@@ -28,12 +30,42 @@ function setFontSize(v) {
   localStorage.setItem('mwlc_rules_font_size', String(v))
 }
 
+// 当前赛事的全部规则（多规则）
+const rulesList = computed(() => (tournament.value && Array.isArray(tournament.value.rules) ? tournament.value.rules : []))
+const currentRule = computed(() => rulesList.value.find((r) => String(r.id) === String(currentRuleId.value)) || rulesList.value[0] || null)
+
 function rulesBase() {
-  return tournament.value || { name: '赛事', rules_content: '', rules_background: '', content_background: '', registration_url: '', description: '' }
+  return currentRule.value || { title: '赛事规则', content: '', background: '', content_background: '' }
+}
+
+// 从 URL 或默认值设置当前规则
+function pickRule() {
+  const want = route.params.ruleId
+  if (want && rulesList.value.some((r) => String(r.id) === String(want))) {
+    currentRuleId.value = String(want)
+  } else if (rulesList.value.length) {
+    currentRuleId.value = String(rulesList.value[0].id)
+  } else {
+    currentRuleId.value = null
+  }
+}
+
+// 切换规则：更新 URL + 重建目录 + 回到顶部
+function switchRule(id) {
+  if (String(id) === String(currentRuleId.value)) return
+  currentRuleId.value = String(id)
+  router.replace({ name: 'rules-detail', params: { code: route.params.code, ruleId: String(id) } })
+  applyRuleView()
+}
+
+function applyRuleView() {
+  activeAnchor.value = ''
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  buildToc()
 }
 
 const bgStyle = computed(() => {
-  const bg = (rulesBase().rules_background || '').trim()
+  const bg = (rulesBase().background || '').trim()
   if (!bg) return {}
   if (bg.startsWith('#')) return { background: bg }
   return { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
@@ -50,12 +82,12 @@ const contentStyle = computed(() => ({
   fontSize: `${fontSize.value}px`
 }))
 
-const registrationUrl = computed(() => (rulesBase().registration_url || '').trim())
+const registrationUrl = computed(() => (tournament.value && (tournament.value.registration_url || '').trim()) || '')
 
 function buildToc() {
   toc.value = []
   if (!contentRef.value) return
-  const doc = new DOMParser().parseFromString(rulesBase().rules_content, 'text/html')
+  const doc = new DOMParser().parseFromString(rulesBase().content || '', 'text/html')
   const headings = doc.querySelectorAll('h1, h2, h3')
   headings.forEach((h, i) => {
     const id = `heading-${i}`
@@ -92,9 +124,18 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll, { passive: true })
 })
 
+// 直接访问 /rules/:code/:ruleId 时按 URL 选择
+watch(() => route.params.ruleId, () => {
+  if (tournament.value) {
+    pickRule()
+    applyRuleView()
+  }
+})
+
 onMounted(async () => {
   try {
     tournament.value = await getTournament(String(route.params.code || 'default'))
+    pickRule()
   } catch (e) {
     error.value = e.message
   }
@@ -114,6 +155,7 @@ onMounted(async () => {
         <div class="hero">
           <h1 class="tournament-name">{{ tournament.name }}</h1>
           <p class="tournament-sub">{{ tournament.description || '赛事规则 · 报名资料 · 数据资料' }}</p>
+          <h2 v-if="currentRule" class="rule-title">{{ currentRule.title }}</h2>
           <div v-if="tournament.banners && tournament.banners.length" class="hero-banner">
             <img :src="tournament.banners[0].path" :alt="'赛事横幅'" />
           </div>
@@ -137,7 +179,16 @@ onMounted(async () => {
         <div v-if="toc.length" class="layout">
           <aside class="toc-side">
             <div class="card toc-card">
-              <h4>目录</h4>
+              <h4>规则</h4>
+              <button
+                v-for="r in rulesList"
+                :key="r.id"
+                class="toc-item rule-item"
+                :class="{ active: String(currentRuleId) === String(r.id) }"
+                @click="switchRule(r.id)"
+              >{{ r.title }}</button>
+              <div v-if="!rulesList.length" class="empty">暂无规则</div>
+              <h4 class="toc-h4">目录</h4>
               <button
                 v-for="item in toc"
                 :key="item.id"
@@ -198,6 +249,19 @@ onMounted(async () => {
   color: var(--text-sub);
   margin-top: 10px;
   letter-spacing: 2px;
+}
+
+.rule-title {
+  margin-top: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.toc-h4 {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .hero-banner {

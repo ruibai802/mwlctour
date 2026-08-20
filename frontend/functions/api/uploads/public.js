@@ -1,6 +1,6 @@
 // /api/uploads/public — 公开上传文件列表（横幅等）
-import { json, handleError } from '../../_lib/auth.js'
-import { resolveTournamentId } from '../../_lib/util.js'
+import { json } from '../../_lib/auth.js'
+import { resolveTournamentId, handleError } from '../../_lib/util.js'
 
 export async function onRequestGet(context) {
   const { request, env } = context

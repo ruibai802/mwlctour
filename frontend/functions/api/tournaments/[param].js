@@ -18,6 +18,8 @@ export async function onRequestGet(context) {
     const rosters = await env.DB.prepare(
       "SELECT id, original_name, path, created_at FROM uploads WHERE type = 'roster' AND tournament_id = ? ORDER BY id DESC"
     ).bind(t.id).all()
+    // 多规则：返回该赛事的全部规则（默认首条为 rules_content 迁移而来）
+    const rules = await env.DB.prepare('SELECT * FROM rules WHERE tournament_id = ? ORDER BY sort, id').bind(t.id).all()
     let maps = []
     try { maps = JSON.parse(t.maps || '[]') } catch (e) { maps = [] }
     return json({
@@ -31,7 +33,8 @@ export async function onRequestGet(context) {
       registration_url: t.registration_url,
       maps,
       banners: banners.results || banners,
-      rosters: rosters.results || rosters
+      rosters: rosters.results || rosters,
+      rules: rules.results || rules
     })
   } catch (e) {
     return handleError(e)

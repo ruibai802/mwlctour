@@ -15,6 +15,12 @@ const routes = [
     meta: { title: '赛事规则' }
   },
   {
+    path: '/rules/:code/:ruleId',
+    name: 'rules-detail',
+    component: () => import('../views/RulesView.vue'),
+    meta: { title: '赛事规则' }
+  },
+  {
     path: '/rules-edit',
     name: 'rules-edit',
     component: () => import('../views/ruleedit/RulesEditView.vue'),
@@ -91,6 +97,42 @@ const routes = [
         name: 'admin-settings',
         component: () => import('../views/admin/SettingsManage.vue'),
         meta: { title: '赛事设置' }
+      },
+      {
+        path: 'roles',
+        name: 'admin-roles',
+        component: () => import('../views/admin/RoleManage.vue'),
+        meta: { title: '角色权限', superadmin: true }
+      },
+      {
+        path: 'groups',
+        name: 'admin-groups',
+        component: () => import('../views/admin/GroupManage.vue'),
+        meta: { title: '分组管理' }
+      },
+      {
+        path: 'staff',
+        name: 'admin-staff',
+        component: () => import('../views/admin/StaffManage.vue'),
+        meta: { title: '工作人员' }
+      },
+      {
+        path: 'teams',
+        name: 'admin-teams',
+        component: () => import('../views/admin/TeamManage.vue'),
+        meta: { title: '队伍管理' }
+      },
+      {
+        path: 'matches',
+        name: 'admin-matches',
+        component: () => import('../views/admin/MatchManage.vue'),
+        meta: { title: '比赛管理' }
+      },
+      {
+        path: 'matches/:id',
+        name: 'admin-match-detail',
+        component: () => import('../views/admin/MatchDetail.vue'),
+        meta: { title: '比赛详情' }
       }
     ]
   },
@@ -111,6 +153,9 @@ router.beforeEach((to) => {
     return { name: 'home' }
   }
   if (to.meta.admin && !auth.isAdmin) {
+    return { name: 'dashboard' }
+  }
+  if (to.meta.superadmin && !auth.isSuperAdmin) {
     return { name: 'dashboard' }
   }
   if (to.name === 'login' && auth.token) {

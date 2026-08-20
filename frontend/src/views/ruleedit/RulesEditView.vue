@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
@@ -13,7 +13,7 @@ import TableRow from '@tiptap/extension-table-row'
 import TableHeader from '@tiptap/extension-table-header'
 import TableCell from '@tiptap/extension-table-cell'
 import { useTournamentStore } from '../../stores/tournament'
-import { updateTournament, uploadDataFile, deleteUpload, uploadEditorImage, getUploads } from '../../api'
+import { updateTournament, uploadDataFile, deleteUpload, uploadEditorImage, getUploads, createRule as apiCreateRule, updateRule as apiUpdateRule, deleteRule as apiDeleteRule } from '../../api'
 import Image from '../../editor/imageExtension'
 
 const tournament = useTournamentStore()
@@ -105,6 +105,11 @@ const contentBgPresets = [
 
 const background = ref('')
 const contentBg = ref('')
+
+// ===== 多规则管理 =====
+const rulesList = ref([])
+const currentRuleId = ref(null)
+const currentRule = computed(() => rulesList.value.find((r) => String(r.id) === String(currentRuleId.value)) || rulesList.value[0] || null)
 
 const banners = computed(() => (tournament.current && tournament.current.banners) || [])
 
@@ -289,16 +294,36 @@ async function removeImageFile() {
   }
 }
 
+function applyRuleToEditor() {
+  const r = currentRule.value
+  background.value = (r && r.background) || ''
+  contentBg.value = (r && r.content_background) || ''
+  if (editor.value) {
+    editor.value.commands.setContent((r && r.content) || '')
+  }
+}
+
 function syncFromCurrent() {
   const c = tournament.current || {}
   name.value = c.name || ''
   description.value = c.description || ''
   registrationUrl.value = (c.registration_url || '').trim()
-  background.value = c.rules_background || ''
-  contentBg.value = c.content_background || ''
-  if (editor.value) {
-    editor.value.commands.setContent(c.rules_content || '')
+  rulesList.value = Array.isArray(c.rules) ? [...c.rules] : []
+  if (!rulesList.value.some((r) => String(r.id) === String(currentRuleId.value))) {
+    currentRuleId.value = rulesList.value.length ? String(rulesList.value[0].id) : null
   }
+  applyRuleToEditor()
+}
+
+// 保存当前规则内容（不存赛事信息）
+async function saveRuleContent(rule) {
+  if (!rule || !editor.value) return
+  await apiUpdateRule(rule.id, {
+    title: rule.title,
+    content: editor.value.getHTML() || '',
+    background: background.value,
+    content_background: contentBg.value
+  })
 }
 
 async function save() {
@@ -307,14 +332,26 @@ async function save() {
   msg.value = ''
   err.value = ''
   try {
+    // 赛事信息
     await updateTournament(tournament.current.id, {
       name: name.value,
       description: description.value,
-      registration_url: registrationUrl.value,
-      rules_content: editor.value?.getHTML() || '',
-      rules_background: background.value,
-      content_background: contentBg.value
+      registration_url: registrationUrl.value
     })
+    // 当前规则内容
+    if (currentRule.value) {
+      const html = editor.value?.getHTML() || ''
+      await apiUpdateRule(currentRule.value.id, {
+        title: currentRule.value.title,
+        content: html,
+        background: background.value,
+        content_background: contentBg.value
+      })
+      const idx = rulesList.value.findIndex((r) => r.id === currentRule.value.id)
+      if (idx >= 0) {
+        rulesList.value[idx] = { ...rulesList.value[idx], content: html, background: background.value, content_background: contentBg.value }
+      }
+    }
     msg.value = '保存成功'
     setTimeout(() => (msg.value = ''), 2000)
     await tournament.fetchCurrent()
@@ -322,6 +359,79 @@ async function save() {
     err.value = e.message
   }
   saving.value = false
+}
+
+// 切换规则：先保存当前规则内容，再载入目标规则
+async function switchRule(id) {
+  if (String(id) === String(currentRuleId.value)) return
+  err.value = ''
+  try {
+    if (currentRule.value && editor.value) await saveRuleContent(currentRule.value)
+    currentRuleId.value = String(id)
+    applyRuleToEditor()
+    msg.value = '已切换到该规则（内容已自动保存）'
+    setTimeout(() => (msg.value = ''), 2000)
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function createRule() {
+  err.value = ''
+  const title = window.prompt('请输入新规则的标题', '')
+  if (title === null) return
+  const t = String(title).trim()
+  if (!t) { err.value = '标题不能为空'; return }
+  try {
+    if (currentRule.value && editor.value) await saveRuleContent(currentRule.value)
+    const row = await apiCreateRule({ title: t })
+    await tournament.fetchCurrent()
+    rulesList.value = [...(tournament.current.rules || [])]
+    currentRuleId.value = String(row.id)
+    applyRuleToEditor()
+    msg.value = '规则已创建，可直接编辑内容'
+    setTimeout(() => (msg.value = ''), 2500)
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function renameRule() {
+  if (!currentRule.value) return
+  err.value = ''
+  const title = window.prompt('请输入新的规则标题', currentRule.value.title)
+  if (title === null) return
+  const t = String(title).trim()
+  if (!t) { err.value = '标题不能为空'; return }
+  try {
+    await saveRuleContent(currentRule.value)
+    const r = currentRule.value
+    await apiUpdateRule(r.id, { title: t })
+    const idx = rulesList.value.findIndex((x) => x.id === r.id)
+    if (idx >= 0) rulesList.value[idx] = { ...rulesList.value[idx], title: t }
+    msg.value = '标题已更新'
+    setTimeout(() => (msg.value = ''), 2000)
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function deleteRule() {
+  if (!currentRule.value) return
+  if (!window.confirm(`确定删除规则「${currentRule.value.title}」？删除后不可恢复。`)) return
+  err.value = ''
+  try {
+    const id = currentRule.value.id
+    await apiDeleteRule(id)
+    await tournament.fetchCurrent()
+    rulesList.value = [...(tournament.current.rules || [])]
+    currentRuleId.value = rulesList.value.length ? String(rulesList.value[0].id) : null
+    applyRuleToEditor()
+    msg.value = '规则已删除'
+    setTimeout(() => (msg.value = ''), 2000)
+  } catch (e) {
+    err.value = e.message
+  }
 }
 
 async function saveBackground(value) {
@@ -436,6 +546,27 @@ onBeforeUnmount(() => {
           <span>顶部报名表按钮链接（留空则不显示顶部按钮）</span>
           <input v-model.trim="registrationUrl" class="form-control" placeholder="https://..." />
         </label>
+      </div>
+
+      <div class="card rules-manage-card">
+        <div class="rules-manage-head">
+          <h3>规则管理 <span class="text-muted">（本赛事下可建多份规则，分别编辑）</span></h3>
+          <div class="rules-manage-actions">
+            <button class="btn btn-sm btn-primary" @click="createRule">＋ 新建规则</button>
+            <button class="btn btn-sm" @click="renameRule" :disabled="!currentRule">改名</button>
+            <button class="btn btn-sm btn-danger" @click="deleteRule" :disabled="!currentRule">删除</button>
+          </div>
+        </div>
+        <div class="rules-tabs">
+          <button
+            v-for="r in rulesList"
+            :key="r.id"
+            class="rules-tab"
+            :class="{ active: String(currentRuleId) === String(r.id) }"
+            @click="switchRule(r.id)"
+          >{{ r.title }}</button>
+          <span v-if="!rulesList.length" class="text-muted">暂无规则，点击「新建规则」创建</span>
+        </div>
       </div>
 
       <div class="editor-wrap card">
@@ -603,6 +734,58 @@ onBeforeUnmount(() => {
 .base-config {
   padding: 18px;
   margin-bottom: 16px;
+}
+
+.rules-manage-card {
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.rules-manage-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.rules-manage-head h3 {
+  font-size: 15px;
+}
+
+.rules-manage-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.rules-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rules-tab {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-sub);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rules-tab:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.rules-tab.active {
+  background: var(--accent-grad);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
 }
 
 .field {

@@ -1,19 +1,29 @@
 <script setup>
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const auth = useAuthStore()
 
-const tabs = [
+const baseTabs = [
   { path: '/admin/schedules', label: '日程管理' },
   { path: '/admin/members', label: '成员管理' },
   { path: '/admin/players', label: '选手名单' },
+  { path: '/admin/teams', label: '队伍管理' },
+  { path: '/admin/matches', label: '比赛管理' },
+  { path: '/admin/groups', label: '分组管理' },
+  { path: '/admin/staff', label: '工作人员' },
   { path: '/admin/uploads', label: '数据上传' },
   { path: '/admin/results', label: '结果总览' },
   { path: '/admin/settings', label: '赛事设置' },
   { path: '/rules-edit', label: '规则编辑' }
 ]
+
+const tabs = computed(() => {
+  if (auth.isSuperAdmin) return [...baseTabs, { path: '/admin/roles', label: '角色权限' }]
+  return baseTabs
+})
 </script>
 
 <template>
