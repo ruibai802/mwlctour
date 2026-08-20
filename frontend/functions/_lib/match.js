@@ -31,13 +31,34 @@ export async function formatMatchDetail(env, row) {
     LEFT JOIN players pl ON pl.id = pn.player_id
     WHERE pn.match_id = ? ORDER BY pn.id
   `).bind(row.id).all()
+  // 双方队伍全名单：从上传名单（team_players 关联 players）自动提取
+  const [teamAPlayers, teamBPlayers] = await Promise.all([
+    getTeamPlayers(env, row.team_a_id),
+    getTeamPlayers(env, row.team_b_id)
+  ])
   return {
     ...row,
     staff: staff.results || staff,
     players: players.results || players,
     videos: videos.results || videos,
-    penalties: penalties.results || penalties
+    penalties: penalties.results || penalties,
+    team_a_players: teamAPlayers,
+    team_b_players: teamBPlayers
   }
+}
+
+// 队伍全名单（P 位 / 姓名 / fanbook / 游戏ID）
+async function getTeamPlayers(env, teamId) {
+  if (!teamId || Number(teamId) <= 0) return []
+  const rows = await env.DB.prepare(`
+    SELECT p.id, p.name, p.fanbook, p.game_id, p.slot,
+           tp.slot AS team_slot, tp.remark AS tp_remark
+    FROM team_players tp
+    JOIN players p ON p.id = tp.player_id
+    WHERE tp.team_id = ?
+    ORDER BY tp.slot, p.slot, p.id
+  `).bind(Number(teamId)).all()
+  return rows.results || rows
 }
 
 export async function resolveTeamName(env, teamId) {

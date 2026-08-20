@@ -369,6 +369,50 @@ onMounted(load)
         <button class="btn btn-sm" @click="openEdit">编辑比赛 / 录入比分</button>
       </div>
 
+      <!-- 双方名单（自动提取自上传的选手名单） -->
+      <div class="card-block roster-block">
+        <div class="block-head">
+          <h3>双方名单</h3>
+          <span class="text-muted">自动提取自上传的选手名单（队伍管理）</span>
+        </div>
+        <div class="roster-grid">
+          <div class="roster-team">
+            <h4>{{ match.team_a_name || 'A 队' }}</h4>
+            <table v-if="match.team_a_players && match.team_a_players.length" class="table roster-table">
+              <thead>
+                <tr><th>位置</th><th>姓名</th><th>fanbook</th><th>游戏ID</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in match.team_a_players" :key="p.id">
+                  <td>{{ p.team_slot || p.slot || '—' }}</td>
+                  <td>{{ p.name || '—' }}</td>
+                  <td class="mono">{{ p.fanbook || '—' }}</td>
+                  <td class="mono">{{ p.game_id || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-else class="text-muted">未关联队伍或暂无名单</p>
+          </div>
+          <div class="roster-team">
+            <h4>{{ match.team_b_name || 'B 队' }}</h4>
+            <table v-if="match.team_b_players && match.team_b_players.length" class="table roster-table">
+              <thead>
+                <tr><th>位置</th><th>姓名</th><th>fanbook</th><th>游戏ID</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in match.team_b_players" :key="p.id">
+                  <td>{{ p.team_slot || p.slot || '—' }}</td>
+                  <td>{{ p.name || '—' }}</td>
+                  <td class="mono">{{ p.fanbook || '—' }}</td>
+                  <td class="mono">{{ p.game_id || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-else class="text-muted">未关联队伍或暂无名单</p>
+          </div>
+        </div>
+      </div>
+
       <!-- 工作人员 -->
       <div class="card-block">
         <div class="block-head">
@@ -778,6 +822,27 @@ onMounted(load)
   gap: 10px;
   font-size: 20px;
   font-weight: 600;
+}
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.roster-team h4 {
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+
+.roster-table {
+  font-size: 13px;
+}
+
+.roster-table .mono {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  color: var(--text-sub);
+  font-size: 12px;
 }
 
 .vs {
