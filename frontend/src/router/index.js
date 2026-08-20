@@ -8,12 +8,14 @@ const routes = [
     redirect: '/rules/default'
   },
   {
+    // 规则卡片列表（默认页）
     path: '/rules/:code',
     name: 'rules',
-    component: () => import('../views/RulesView.vue'),
+    component: () => import('../views/RulesIndex.vue'),
     meta: { title: '赛事规则' }
   },
   {
+    // 单份规则详情
     path: '/rules/:code/:ruleId',
     name: 'rules-detail',
     component: () => import('../views/RulesView.vue'),

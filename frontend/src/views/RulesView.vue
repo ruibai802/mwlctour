@@ -50,12 +50,9 @@ function pickRule() {
   }
 }
 
-// 切换规则：更新 URL + 重建目录 + 回到顶部
-function switchRule(id) {
-  if (String(id) === String(currentRuleId.value)) return
-  currentRuleId.value = String(id)
-  router.replace({ name: 'rules-detail', params: { code: route.params.code, ruleId: String(id) } })
-  applyRuleView()
+// 返回规则卡片列表
+function goBack() {
+  router.push({ name: 'rules', params: { code: route.params.code } })
 }
 
 function applyRuleView() {
@@ -157,6 +154,10 @@ onMounted(async () => {
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="error" class="error">{{ error }}</div>
       <template v-else>
+        <div class="back-row">
+          <button class="btn btn-sm" @click="goBack">← 返回规则列表</button>
+        </div>
+
         <div class="hero">
           <h1 class="tournament-name">{{ tournament.name }}</h1>
           <p class="tournament-sub">{{ tournament.description || '赛事规则 · 报名资料 · 数据资料' }}</p>
@@ -184,16 +185,7 @@ onMounted(async () => {
         <div v-if="toc.length" class="layout">
           <aside class="toc-side">
             <div class="card toc-card">
-              <h4>规则</h4>
-              <button
-                v-for="r in rulesList"
-                :key="r.id"
-                class="toc-item rule-item"
-                :class="{ active: String(currentRuleId) === String(r.id) }"
-                @click="switchRule(r.id)"
-              >{{ r.title }}</button>
-              <div v-if="!rulesList.length" class="empty">暂无规则</div>
-              <h4 class="toc-h4">目录</h4>
+              <h4>目录</h4>
               <button
                 v-for="item in toc"
                 :key="item.id"
@@ -237,6 +229,10 @@ onMounted(async () => {
 .hero {
   text-align: center;
   padding: 42px 0 26px;
+}
+
+.back-row {
+  margin-bottom: 12px;
 }
 
 .tournament-name {
