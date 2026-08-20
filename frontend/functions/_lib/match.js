@@ -7,6 +7,16 @@ export const PLAYER_SIDES = ['a', 'b']
 export const PENALTY_TYPES = ['warning', 'points', 'fine', 'ban']
 export const PENALTY_STATUS = ['pending', 'decided', 'rejected']
 
+// 解析对阵名：如 "左卫门 VS 王" / "A队 vs B队" → [A队名, B队名]
+export function parseMatchup(matchup) {
+  const m = String(matchup || '').match(/^\s*(.+?)\s*(?:VS|vs|对)\s*(.+?)\s*$/)
+  if (!m) return null
+  const a = m[1].trim()
+  const b = m[2].trim()
+  if (!a || !b) return null
+  return [a, b]
+}
+
 export async function formatMatchDetail(env, row) {
   const staff = await env.DB.prepare(`
     SELECT ms.id, ms.match_id, ms.staff_id, ms.role, ms.confirmed, ms.remark AS ms_remark,
@@ -31,10 +41,11 @@ export async function formatMatchDetail(env, row) {
     LEFT JOIN players pl ON pl.id = pn.player_id
     WHERE pn.match_id = ? ORDER BY pn.id
   `).bind(row.id).all()
-  // 双方队伍全名单：从上传名单（team_players 关联 players）自动提取
+  // 双方队伍全名单：优先按对阵名（matchup）匹配同名队伍，其次按关联队伍 ID，再按队伍字段名
+  const mup = parseMatchup(row.matchup)
   const [teamAPlayers, teamBPlayers] = await Promise.all([
-    getTeamPlayers(env, row.team_a_id),
-    getTeamPlayers(env, row.team_b_id)
+    getTeamPlayersFor(env, row, 'a', mup),
+    getTeamPlayersFor(env, row, 'b', mup)
   ])
   return {
     ...row,
@@ -59,6 +70,33 @@ async function getTeamPlayers(env, teamId) {
     ORDER BY tp.slot, p.slot, p.id
   `).bind(Number(teamId)).all()
   return rows.results || rows
+}
+
+// 按队伍名查找队伍队员（不存在返回 []）
+async function getTeamPlayersByName(env, tid, name) {
+  if (!name) return []
+  const t = await env.DB.prepare('SELECT id FROM teams WHERE tournament_id = ? AND name = ?').bind(tid, name).first()
+  if (!t) return []
+  return getTeamPlayers(env, t.id)
+}
+
+// 按对阵名匹配队伍提取名单；回退关联队伍 ID / 队伍字段名
+async function getTeamPlayersFor(env, row, side, mup) {
+  const wantedName = mup ? mup[side === 'a' ? 0 : 1] : ''
+  // 1) 对阵名同名队伍优先
+  if (wantedName) {
+    const byName = await getTeamPlayersByName(env, row.tournament_id, wantedName)
+    if (byName.length) return byName
+  }
+  // 2) 关联队伍 ID
+  const teamId = side === 'a' ? row.team_a_id : row.team_b_id
+  if (teamId) {
+    const byId = await getTeamPlayers(env, teamId)
+    if (byId.length) return byId
+  }
+  // 3) 队伍字段名
+  const fieldName = side === 'a' ? row.team_a_name : row.team_b_name
+  return getTeamPlayersByName(env, row.tournament_id, fieldName)
 }
 
 export async function resolveTeamName(env, teamId) {

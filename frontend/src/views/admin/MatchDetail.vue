@@ -316,7 +316,7 @@ onMounted(load)
         </div>
         <div class="roster-grid">
           <div class="roster-team">
-            <h4>{{ match.team_a_name || 'A 队' }}</h4>
+            <h4>{{ matchupParts[0] || 'A 队' }}</h4>
             <table v-if="match.team_a_players && match.team_a_players.length" class="table roster-table">
               <thead>
                 <tr><th>位置</th><th>姓名</th><th>fanbook</th><th>游戏ID</th></tr>
@@ -333,7 +333,7 @@ onMounted(load)
             <p v-else class="text-muted">未关联队伍或暂无名单</p>
           </div>
           <div class="roster-team">
-            <h4>{{ match.team_b_name || 'B 队' }}</h4>
+            <h4>{{ matchupParts[1] || 'B 队' }}</h4>
             <table v-if="match.team_b_players && match.team_b_players.length" class="table roster-table">
               <thead>
                 <tr><th>位置</th><th>姓名</th><th>fanbook</th><th>游戏ID</th></tr>
