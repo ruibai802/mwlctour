@@ -17,7 +17,7 @@ export async function onRequestPut(context) {
     if (!title) return badRequest('规则标题不能为空')
     await env.DB.prepare(`
       UPDATE rules SET
-        title = ?, content = ?, background = ?, content_background = ?, registration_url = ?, sort = ?,
+        title = ?, content = ?, background = ?, content_background = ?, registration_url = ?, page_title = ?, page_subtitle = ?, sort = ?,
         updated_at = datetime('now','localtime')
       WHERE id = ? AND tournament_id = ?
     `).bind(
@@ -26,6 +26,8 @@ export async function onRequestPut(context) {
       body.background !== undefined ? String(body.background) : existing.background,
       body.content_background !== undefined ? String(body.content_background) : existing.content_background,
       body.registration_url !== undefined ? String(body.registration_url) : (existing.registration_url || ''),
+      body.page_title !== undefined ? String(body.page_title) : (existing.page_title || ''),
+      body.page_subtitle !== undefined ? String(body.page_subtitle) : (existing.page_subtitle || ''),
       body.sort !== undefined ? parseInt(body.sort, 10) || 0 : existing.sort,
       params.id,
       tid

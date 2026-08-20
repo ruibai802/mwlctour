@@ -1,11 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSchedules, getSettings, getMissingLinks, changePassword } from '../api'
+import { getSchedules, getMatches, getGroups, getSettings, getMissingLinks, changePassword } from '../api'
 
 const router = useRouter()
 const activeTab = ref('pending')
 const schedules = ref([])
+const matches = ref([])
+const groups = ref([])
 const settings = ref({ tournament_name: 'MWLC赛事' })
 const loading = ref(true)
 const error = ref('')
@@ -17,25 +19,77 @@ const pwdForm = ref({ old_password: '', new_password: '', confirm: '' })
 const pwdMsg = ref('')
 const pwdError = ref('')
 
-const filtered = computed(() => schedules.value)
-
-const pendingList = computed(() => filtered.value.filter((s) => s.status === 'pending'))
-const completedList = computed(() => filtered.value.filter((s) => s.status === 'completed'))
-
-function briefLabel(s) {
-  return `${settings.value.tournament_name} | ${s.group_name || '无组别'} | ${s.round}-${s.seq} | ${s.matchup || '未填写对阵'}`
+// 统一日程/比赛为卡片数据结构
+function normalizeSchedule(s) {
+  return {
+    kind: 'schedule',
+    id: s.id,
+    group_name: s.group_name || '无组别',
+    round: s.round,
+    seq: s.seq,
+    matchup: s.matchup,
+    room: s.room,
+    time: s.time,
+    map: s.map,
+    status: s.status,
+    score: (s.result && s.result.score) || '',
+    winner: (s.result && s.result.winner) || '',
+    linksOk: !!(s.result && s.result.game_links && s.result.game_links.length)
+  }
 }
 
-function openDetail(id) {
-  router.push(`/schedule/${id}`)
+function normalizeMatch(m) {
+  const g = groups.value.find((x) => String(x.id) === String(m.group_id))
+  return {
+    kind: 'match',
+    id: m.id,
+    group_name: g ? g.name : (m.group_id ? `组${m.group_id}` : '无组别'),
+    round: m.round,
+    seq: m.seq,
+    matchup: m.matchup || `${m.team_a_name || '?'} vs ${m.team_b_name || '?'}`,
+    room: m.room,
+    time: m.start_time,
+    map: m.map,
+    status: m.status === 'completed' ? 'completed' : 'pending',
+    score: m.score || '',
+    winner: m.winner || '',
+    linksOk: false
+  }
+}
+
+const allItems = computed(() => {
+  const list = []
+  for (const s of schedules.value) list.push(normalizeSchedule(s))
+  for (const m of matches.value) {
+    if (String(m.status) === 'cancelled') continue
+    list.push(normalizeMatch(m))
+  }
+  return list
+})
+
+const pendingList = computed(() => allItems.value.filter((s) => s.status === 'pending'))
+const completedList = computed(() => allItems.value.filter((s) => s.status === 'completed'))
+
+function briefLabel(s) {
+  return `${settings.value.tournament_name} | ${s.group_name} | ${s.round}-${s.seq} | ${s.matchup || '未填写对阵'}`
+}
+
+function openDetail(item) {
+  if (item.kind === 'match') {
+    router.push(`/match/${item.id}`)
+  } else {
+    router.push(`/schedule/${item.id}`)
+  }
 }
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [s, set] = await Promise.all([getSchedules(), getSettings()])
+    const [s, m, g, set] = await Promise.all([getSchedules(), getMatches(), getGroups(), getSettings()])
     schedules.value = s
+    matches.value = m
+    groups.value = g
     settings.value = set
   } catch (e) {
     error.value = e.message
@@ -54,9 +108,8 @@ async function queryMissing() {
 }
 
 function groupBadge(s) {
-  if (!s.result) return null
-  const links = s.result.game_links || []
-  return links.length ? '✅ 已传' : '⚠️ 缺链接'
+  if (s.kind !== 'schedule') return null
+  return s.linksOk ? '✅ 已传' : '⚠️ 缺链接'
 }
 
 async function submitPwd() {
@@ -112,12 +165,12 @@ onMounted(load)
         <div v-else class="schedule-grid">
           <div
             v-for="s in pendingList"
-            :key="s.id"
+            :key="s.kind + '-' + s.id"
             class="card schedule-card pending"
-            @click="openDetail(s.id)"
+            @click="openDetail(s)"
           >
             <div class="card-top">
-              <span class="badge badge-pending">待完成</span>
+              <span class="badge badge-pending">{{ s.kind === 'match' ? '比赛' : '待完成' }}</span>
               <span class="text-muted">{{ s.time }}</span>
             </div>
             <div class="brief">{{ briefLabel(s) }}</div>
@@ -134,9 +187,9 @@ onMounted(load)
         <div v-else class="schedule-grid">
           <div
             v-for="s in completedList"
-            :key="s.id"
+            :key="s.kind + '-' + s.id"
             class="card schedule-card completed"
-            @click="openDetail(s.id)"
+            @click="openDetail(s)"
           >
             <div class="card-top">
               <span class="badge badge-completed">已完成</span>
@@ -144,9 +197,9 @@ onMounted(load)
               <span class="text-muted">{{ s.time }}</span>
             </div>
             <div class="brief">{{ briefLabel(s) }}</div>
-            <div class="result-line" v-if="s.result">
-              <span class="score">{{ s.result.score }}</span>
-              <span class="winner">🏆 {{ s.result.winner }}</span>
+            <div class="result-line" v-if="s.score || s.winner">
+              <span class="score">{{ s.score }}</span>
+              <span class="winner">🏆 {{ s.winner }}</span>
             </div>
           </div>
         </div>

@@ -52,8 +52,8 @@ onMounted(async () => {
   <div class="rules-index-page">
     <div class="container">
       <div class="hero">
-        <h1 class="page-title">{{ tournament ? tournament.name : '赛事规则' }}</h1>
-        <p class="page-sub">{{ tournament ? (tournament.description || '选择规则查看详情或报名') : '加载中...' }}</p>
+        <h1 class="page-title">MWLC锦标赛</h1>
+        <p class="page-sub">本网页为MWLC锦标赛规则网页，请点击您想选择的赛事进入具体规则页</p>
       </div>
 
       <div v-if="loading" class="loading">加载中...</div>

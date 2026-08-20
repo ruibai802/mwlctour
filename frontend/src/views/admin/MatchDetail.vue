@@ -13,6 +13,13 @@ import {
 const route = useRoute()
 const router = useRouter()
 
+// 返回：优先历史记录，否则管理员回比赛列表、其他身份回工作台
+function backToList() {
+  const canBack = router.options.history.state.back
+  if (canBack) router.back()
+  else router.push('/dashboard')
+}
+
 const STATUS_OPTIONS = [
   { value: 'scheduled', label: '待开赛' },
   { value: 'ongoing', label: '进行中' },
@@ -340,7 +347,7 @@ onMounted(load)
     <div v-if="loading" class="loading">加载中...</div>
     <template v-else-if="match">
       <div class="back-row">
-        <button class="btn btn-sm" @click="router.push('/admin/matches')">← 返回比赛列表</button>
+        <button class="btn btn-sm" @click="backToList">← 返回</button>
         <span class="text-muted">分组：{{ groupName(match.group_id) }} · {{ match.round }}-{{ match.seq }} · 房间 {{ match.room || '—' }}</span>
         <span class="badge" :class="`badge-${match.status}`">{{ statusLabel(match.status) }}</span>
       </div>

@@ -299,6 +299,8 @@ function applyRuleToEditor() {
   background.value = (r && r.background) || ''
   contentBg.value = (r && r.content_background) || ''
   ruleRegUrl.value = (r && r.registration_url) || ''
+  rulePageTitle.value = (r && r.page_title) || ''
+  rulePageSubtitle.value = (r && r.page_subtitle) || ''
   if (editor.value) {
     editor.value.commands.setContent((r && r.content) || '')
   }
@@ -306,6 +308,29 @@ function applyRuleToEditor() {
 
 // 当前规则的报名链接
 const ruleRegUrl = ref('')
+
+// 详情页大标题/副标题
+const rulePageTitle = ref('')
+const rulePageSubtitle = ref('')
+
+async function savePageTitles() {
+  if (!currentRule.value) return
+  err.value = ''
+  try {
+    await apiUpdateRule(currentRule.value.id, {
+      page_title: rulePageTitle.value.trim(),
+      page_subtitle: rulePageSubtitle.value.trim()
+    })
+    const idx = rulesList.value.findIndex((x) => x.id === currentRule.value.id)
+    if (idx >= 0) {
+      rulesList.value[idx] = { ...rulesList.value[idx], page_title: rulePageTitle.value.trim(), page_subtitle: rulePageSubtitle.value.trim() }
+    }
+    msg.value = '页面标题已保存'
+    setTimeout(() => (msg.value = ''), 2000)
+  } catch (e) {
+    err.value = e.message
+  }
+}
 
 async function saveRuleRegUrl() {
   if (!currentRule.value) return
@@ -589,6 +614,19 @@ onBeforeUnmount(() => {
           <span class="bg-label">「{{ currentRule.title }}」报名链接：</span>
           <input v-model="ruleRegUrl" class="form-control reg-input" placeholder="https://...（留空则用赛事级报名链接）" />
           <button class="btn btn-sm" @click="saveRuleRegUrl">保存链接</button>
+        </div>
+        <div v-if="currentRule" class="rule-page-titles">
+          <div class="field-row">
+            <label class="field grow">
+              <span>「{{ currentRule.title }}」详情页大标题（留空用赛事名）</span>
+              <input v-model="rulePageTitle" class="form-control" placeholder="如：MWLC锦标赛总则" />
+            </label>
+            <label class="field grow">
+              <span>详情页副标题（留空用赛事介绍）</span>
+              <input v-model="rulePageSubtitle" class="form-control" placeholder="如：本页为比赛规则说明" />
+            </label>
+          </div>
+          <button class="btn btn-sm" @click="savePageTitles">保存页面标题</button>
         </div>
       </div>
 

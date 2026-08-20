@@ -61,6 +61,16 @@ function applyRuleView() {
   buildToc()
 }
 
+// 详情页大标题/副标题：优先当前规则配置，回退赛事名/描述
+const pageTitle = computed(() => {
+  const t = (currentRule.value && (currentRule.value.page_title || '').trim()) || ''
+  return t || (tournament.value && tournament.value.name) || '赛事规则'
+})
+const pageSubtitle = computed(() => {
+  const s = (currentRule.value && (currentRule.value.page_subtitle || '').trim()) || ''
+  return s || (tournament.value && (tournament.value.description || '')) || ''
+})
+
 const bgStyle = computed(() => {
   const bg = (rulesBase().background || '').trim()
   if (!bg) return {}
@@ -159,8 +169,8 @@ onMounted(async () => {
         </div>
 
         <div class="hero">
-          <h1 class="tournament-name">{{ tournament.name }}</h1>
-          <p class="tournament-sub">{{ tournament.description || '赛事规则 · 报名资料 · 数据资料' }}</p>
+          <h1 class="tournament-name">{{ pageTitle }}</h1>
+          <p class="tournament-sub">{{ pageSubtitle }}</p>
           <h2 v-if="currentRule" class="rule-title">{{ currentRule.title }}</h2>
           <div v-if="tournament.banners && tournament.banners.length" class="hero-banner">
             <img :src="tournament.banners[0].path" :alt="'赛事横幅'" />
@@ -347,6 +357,18 @@ onMounted(async () => {
 .toc-side {
   position: sticky;
   top: 78px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.toc-side::-webkit-scrollbar {
+  width: 6px;
+}
+
+.toc-side::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
 }
 
 .toc-card {

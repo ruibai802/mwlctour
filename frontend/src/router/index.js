@@ -52,6 +52,13 @@ const routes = [
     meta: { title: '日程详情', auth: true }
   },
   {
+    // 比赛详情（裁判工作台也可进入）
+    path: '/match/:id',
+    name: 'match-detail',
+    component: () => import('../views/admin/MatchDetail.vue'),
+    meta: { title: '比赛详情', auth: true }
+  },
+  {
     path: '/admin',
     component: () => import('../views/AdminLayout.vue'),
     meta: { title: '管理后台', auth: true, admin: true },
