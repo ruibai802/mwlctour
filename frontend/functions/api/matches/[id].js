@@ -2,7 +2,6 @@
 import { currentUser, isAdmin, json, unauthorized, forbidden, badRequest, notFound } from '../../_lib/auth.js'
 import { resolveTournamentId, handleError } from '../../_lib/util.js'
 import { formatMatchDetail, resolveTeamName, makeRoom, MATCH_STATUS } from '../../_lib/match.js'
-import { hasPerm } from '../../_lib/rbac.js'
 
 // 解析比分：兼容 3:2 / 3-2 / 3：2（半角/全角冒号、短横）
 function parseScore(score) {
@@ -19,16 +18,6 @@ function parseMatchup(matchup) {
   const b = m[2].trim()
   if (!a || !b) return null
   return [a, b]
-}
-
-// 是否可管理/录分比赛
-async function canManageMatch(user, env) {
-  if (isAdmin(user)) return true
-  try {
-    return await hasPerm(env, user, 'result:submit')
-  } catch (e) {
-    return false
-  }
 }
 
 async function cleanMatch(env, body, existing) {
@@ -90,16 +79,13 @@ export async function onRequestPut(context) {
   try {
     const row = await env.DB.prepare('SELECT * FROM matches WHERE id = ?').bind(params.id).first()
     if (!row) return notFound('比赛不存在')
-    // 接取权限：日程已被裁判/录像接取时，仅接取者或管理员可更新
+    // 接取权限：日程已被裁判/录像接取时，仅接取者或管理员可更新；
+    // 未接取时仅管理员可更新（普通裁判/录像必须先接取才能录分）
     const claimedRef = String(row.claimed_referee_id || '')
     const claimedRec = String(row.claimed_recorder_id || '')
     const isClaimedUser = claimedRef === String(user.id) || claimedRec === String(user.id)
-    if (claimedRef || claimedRec) {
-      if (!isAdmin(user) && !isClaimedUser) {
-        return forbidden('该日程已由接取的裁判/录像负责，仅接取者或管理员可更新')
-      }
-    } else if (!(await canManageMatch(user, env))) {
-      return forbidden('无权限执行此操作')
+    if (!isAdmin(user) && !isClaimedUser) {
+      return forbidden('该日程仅由接取的裁判/录像（或管理员）更新，请先接取该日程')
     }
     let body
     try { body = await request.json() } catch (e) { body = {} }

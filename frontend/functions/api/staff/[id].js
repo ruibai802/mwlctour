@@ -25,6 +25,7 @@ export async function onRequestGet(context) {
   const { request, env, params } = context
   const user = await currentUser(request, env)
   if (!user) return unauthorized()
+  if (!isAdmin(user)) return forbidden('仅管理员可查看工作人员详情')
   try {
     const tid = await resolveTournamentId(request, env)
     const row = await env.DB.prepare('SELECT * FROM staff WHERE id = ? AND tournament_id = ?').bind(params.id, tid).first()
