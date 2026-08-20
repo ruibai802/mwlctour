@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getMatch, updateMatch,
@@ -37,6 +37,13 @@ const STAFF_ROLES = [
 const match = ref(null)
 const groups = ref([])
 const teams = ref([])
+
+// 对阵双方名字：优先从对阵名（如 "左卫门 VS 王"）解析，回退队伍字段名
+const matchupParts = computed(() => {
+  const m = String((match.value && match.value.matchup) || '').match(/^\s*(.+?)\s*(?:VS|vs|对)\s*(.+?)\s*$/)
+  if (m && m[1].trim() && m[2].trim()) return [m[1].trim(), m[2].trim()]
+  return [match.value && match.value.team_a_name, match.value && match.value.team_b_name]
+})
 const staffList = ref([])
 const players = ref([])
 const loading = ref(true)
@@ -286,12 +293,12 @@ onMounted(load)
 
       <div class="card match-head">
         <div class="matchup">
-          <span class="team">{{ match.team_a_name }}</span>
+          <span class="team">{{ matchupParts[0] }}</span>
           <span class="vs">VS</span>
-          <span class="team">{{ match.team_b_name }}</span>
+          <span class="team">{{ matchupParts[1] }}</span>
         </div>
         <div class="meta">
-          <span v-if="match.matchup">{{ match.matchup }}</span>
+          <span v-if="match.matchup && !/VS|vs|对/.test(match.matchup)">{{ match.matchup }}</span>
           <span>{{ match.start_time || '时间待定' }}{{ match.end_time ? ' ~ ' + match.end_time : '' }}</span>
           <span v-if="match.map">地图：{{ match.map }}</span>
           <span v-if="match.score">比分：<b class="mono">{{ match.score }}</b></span>
