@@ -60,7 +60,7 @@ const STAFF_FIELD_LABELS = {
   fanbook_id: 'fanbookID',
   title: '身份',
   department: '部门',
-  phone: '电话',
+  phone: 'QQ号',
   status: '状态(active/inactive/left)'
 }
 
@@ -70,7 +70,7 @@ function autoMatch(col) {
   if (/fanbook|fb/.test(c)) return 'fanbook_id'
   if (/身份|职位|title/.test(c)) return 'title'
   if (/部门|department/.test(c)) return 'department'
-  if (/电话|手机|phone/.test(c)) return 'phone'
+  if (/电话|手机|qq|phone/.test(c)) return 'phone'
   if (/状态|status/.test(c)) return 'status'
   return ''
 }
@@ -331,7 +331,7 @@ onMounted(load)
               <th>fanbookID</th>
               <th>身份</th>
               <th>部门</th>
-              <th>电话</th>
+              <th>QQ号</th>
               <th>状态</th>
               <th>备注</th>
               <th>操作</th>
@@ -439,7 +439,7 @@ onMounted(load)
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>电话</label>
+            <label>QQ号</label>
             <input v-model="form.phone" class="form-control" />
           </div>
           <div class="form-group">

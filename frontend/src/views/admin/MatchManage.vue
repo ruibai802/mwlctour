@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   getMatches, createMatch, updateMatch, deleteMatch,
-  getGroupList, getTeamList, getStaff
+  getGroupList, getTeamList, getStaff, getSettings
 } from '../../api'
 
 const router = useRouter()
@@ -19,6 +19,7 @@ const matches = ref([])
 const groups = ref([])
 const teams = ref([])
 const staffList = ref([])
+const settings = ref({ tournament_names: [] })
 const loading = ref(true)
 const error = ref('')
 const filter = ref({ group_id: '', status: '', keyword: '' })
@@ -34,10 +35,11 @@ const statusClass = (v) => `badge-${v}`
 
 async function loadMeta() {
   try {
-    const [g, t, s] = await Promise.all([getGroupList(), getTeamList(), getStaff()])
+    const [g, t, s, set] = await Promise.all([getGroupList(), getTeamList(), getStaff(), getSettings()])
     groups.value = g
     teams.value = t
     staffList.value = s
+    settings.value = set
   } catch (e) {
     // 元数据加载失败不阻塞列表
   }
@@ -60,6 +62,7 @@ async function load() {
 
 function defaultForm() {
   return {
+    tournament_name: '',
     group_id: '',
     round: 1,
     seq: 1,
@@ -222,6 +225,13 @@ onMounted(() => {
       <div class="modal wide">
         <h3>{{ editing ? '编辑比赛' : '创建比赛' }}</h3>
         <div class="form-row">
+          <div class="form-group">
+            <label>赛事名称</label>
+            <select v-model="form.tournament_name" class="form-control">
+              <option value="">— 不指定 —</option>
+              <option v-for="n in settings.tournament_names" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </div>
           <div class="form-group">
             <label>分组</label>
             <select v-model="form.group_id" class="form-control">

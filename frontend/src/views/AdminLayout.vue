@@ -7,11 +7,10 @@ const route = useRoute()
 const auth = useAuthStore()
 
 const baseTabs = [
-  { path: '/admin/schedules', label: '日程管理' },
   { path: '/admin/members', label: '成员管理' },
   { path: '/admin/players', label: '选手名单' },
   { path: '/admin/teams', label: '队伍管理' },
-  { path: '/admin/matches', label: '比赛管理' },
+  { path: '/admin/matches', label: '日程管理' },
   { path: '/admin/groups', label: '分组管理' },
   { path: '/admin/staff', label: '工作人员' },
   { path: '/admin/uploads', label: '数据上传' },

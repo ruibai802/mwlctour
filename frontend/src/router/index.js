@@ -46,30 +46,18 @@ const routes = [
     meta: { title: '裁判工作台', auth: true }
   },
   {
-    path: '/schedule/:id',
-    name: 'schedule-detail',
-    component: () => import('../views/ScheduleDetailView.vue'),
-    meta: { title: '日程详情', auth: true }
-  },
-  {
-    // 比赛详情（裁判工作台也可进入）
+    // 日程（比赛）详情（裁判工作台也可进入）
     path: '/match/:id',
     name: 'match-detail',
     component: () => import('../views/admin/MatchDetail.vue'),
-    meta: { title: '比赛详情', auth: true }
+    meta: { title: '日程详情', auth: true }
   },
   {
     path: '/admin',
     component: () => import('../views/AdminLayout.vue'),
     meta: { title: '管理后台', auth: true, admin: true },
     children: [
-      { path: '', redirect: '/admin/schedules' },
-      {
-        path: 'schedules',
-        name: 'admin-schedules',
-        component: () => import('../views/admin/ScheduleManage.vue'),
-        meta: { title: '日程管理' }
-      },
+      { path: '', redirect: '/admin/matches' },
       {
         path: 'members',
         name: 'admin-members',

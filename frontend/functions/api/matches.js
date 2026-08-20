@@ -6,7 +6,7 @@ import { formatMatchDetail, resolveTeamName, makeRoom, MATCH_STATUS } from '../_
 async function cleanMatch(env, body, existing) {
   const base = existing || {}
   const m = {}
-  for (const f of ['matchup', 'room', 'start_time', 'end_time', 'map', 'score', 'winner', 'status', 'remark']) {
+  for (const f of ['matchup', 'room', 'start_time', 'end_time', 'map', 'score', 'winner', 'status', 'remark', 'tournament_name']) {
     m[f] = body[f] !== undefined ? String(body[f]).trim() : String((base[f] || '')).trim()
   }
   m.round = body.round !== undefined ? parseInt(body.round, 10) || 1 : (base.round || 1)
@@ -66,11 +66,13 @@ export async function onRequestPost(context) {
     const info = await env.DB.prepare(`
       INSERT INTO matches (
         tournament_id, group_id, round, seq, matchup, room, start_time, end_time,
-        team_a_id, team_b_id, team_a_name, team_b_name, map, score, winner, status, remark, created_by
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        team_a_id, team_b_id, team_a_name, team_b_name, map, score, winner, status, remark,
+        tournament_name, created_by
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).bind(
       tid, m.group_id, m.round, m.seq, m.matchup, m.room, m.start_time, m.end_time,
       m.team_a_id, m.team_b_id, m.team_a_name, m.team_b_name, m.map, m.score, m.winner, m.status, m.remark,
+      m.tournament_name || '',
       String(user.name || user.fanbook_id)
     ).run()
     const row = await env.DB.prepare('SELECT * FROM matches WHERE id = ?').bind(info.meta.last_row_id).first()

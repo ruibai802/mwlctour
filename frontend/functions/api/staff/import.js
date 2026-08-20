@@ -37,6 +37,8 @@ export async function onRequestPost(context) {
       if (!s.name && !s.fanbook_id) { skipped++; continue }
       if (!s.name) { skipped++; continue }
       if (!STATUSES.includes(s.status)) s.status = 'active'
+      // 位置部门默认填写「MWLC 赛事组」
+      if (!s.department) s.department = 'MWLC 赛事组'
       // 同一赛事下 fanbook_id 去重（有 fanbook 时）
       if (s.fanbook_id) {
         const exists = await env.DB.prepare('SELECT id FROM staff WHERE tournament_id = ? AND fanbook_id = ?')

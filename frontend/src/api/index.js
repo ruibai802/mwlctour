@@ -36,26 +36,6 @@ export const updateMe = (data) => request('/auth/me', { method: 'PUT', body: JSO
 
 export const uploadAvatar = (formData) => request('/auth/avatar', { method: 'POST', body: formData })
 
-export const getSchedules = (params = {}) => {
-  const q = new URLSearchParams(params).toString()
-  return request(`/schedules${q ? `?${q}` : ''}`)
-}
-
-export const getSchedule = (id) => request(`/schedules/${id}`)
-export const createSchedule = (data) => request('/schedules', { method: 'POST', body: JSON.stringify(data) })
-export const updateSchedule = (id, data) => request(`/schedules/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const deleteSchedule = (id) => request(`/schedules/${id}`, { method: 'DELETE' })
-export const getGroups = () => request('/schedules/groups')
-export const getMissingLinks = () => request('/schedules/missing-links')
-
-export const uploadResult = (formData) => request('/results', { method: 'POST', body: formData })
-export const updateResult = (id, formData) => request(`/results/${id}`, { method: 'PUT', body: formData })
-export const updateResultLinks = (id, gameLinks) =>
-  request(`/results/${id}/links`, { method: 'PUT', body: JSON.stringify({ game_links: gameLinks }) })
-export const getResults = () => request('/results')
-export const getResult = (id) => request(`/results/${id}`)
-export const deleteResult = (id) => request(`/results/${id}`, { method: 'DELETE' })
-
 export const getMembers = () => request('/members')
 export const createMember = (data) => request('/members', { method: 'POST', body: JSON.stringify(data) })
 export const updateMember = (id, data) => request(`/members/${id}`, { method: 'PUT', body: JSON.stringify(data) })

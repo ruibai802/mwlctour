@@ -2,44 +2,23 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { getSchedules, getMatches, getGroups, getSettings, getMissingLinks, changePassword } from '../api'
+import { getMatches, getGroupList, getSettings, changePassword } from '../api'
 
 const router = useRouter()
 const auth = useAuthStore()
 const activeTab = ref('pending')
-const schedules = ref([])
 const matches = ref([])
 const groups = ref([])
 const settings = ref({ tournament_name: 'MWLC赛事' })
 const loading = ref(true)
 const error = ref('')
-const missingLinks = ref(null)
-const showMissing = ref(false)
 
 const showPwd = ref(false)
 const pwdForm = ref({ old_password: '', new_password: '', confirm: '' })
 const pwdMsg = ref('')
 const pwdError = ref('')
 
-// 统一日程/比赛为卡片数据结构
-function normalizeSchedule(s) {
-  return {
-    kind: 'schedule',
-    id: s.id,
-    group_name: s.group_name || '无组别',
-    round: s.round,
-    seq: s.seq,
-    matchup: s.matchup,
-    room: s.room,
-    time: s.time,
-    map: s.map,
-    status: s.status,
-    score: (s.result && s.result.score) || '',
-    winner: (s.result && s.result.winner) || '',
-    linksOk: !!(s.result && s.result.game_links && s.result.game_links.length)
-  }
-}
-
+// 统一比赛为卡片数据结构
 function normalizeMatch(m) {
   const uid = auth.user && String(auth.user.id)
   const g = groups.value.find((x) => String(x.id) === String(m.group_id))
@@ -47,6 +26,7 @@ function normalizeMatch(m) {
     kind: 'match',
     id: m.id,
     group_name: g ? g.name : (m.group_id ? `组${m.group_id}` : '无组别'),
+    tournament_name: m.tournament_name || settings.value.tournament_name || '',
     round: m.round,
     seq: m.seq,
     matchup: m.matchup || `${m.team_a_name || '?'} vs ${m.team_b_name || '?'}`,
@@ -56,20 +36,11 @@ function normalizeMatch(m) {
     status: m.status === 'completed' ? 'completed' : 'pending',
     score: m.score || '',
     winner: m.winner || '',
-    linksOk: false,
     claimed_by_me: String(m.claimed_referee_id || '') === uid || String(m.claimed_recorder_id || '') === uid
   }
 }
 
-const allItems = computed(() => {
-  const list = []
-  for (const s of schedules.value) list.push(normalizeSchedule(s))
-  for (const m of matches.value) {
-    if (String(m.status) === 'cancelled') continue
-    list.push(normalizeMatch(m))
-  }
-  return list
-})
+const allItems = computed(() => matches.value.filter((m) => String(m.status) !== 'cancelled').map(normalizeMatch))
 
 const pendingList = computed(() => allItems.value.filter((s) => s.status === 'pending'))
 const completedList = computed(() => allItems.value.filter((s) => s.status === 'completed'))
@@ -77,23 +48,19 @@ const completedList = computed(() => allItems.value.filter((s) => s.status === '
 const myClaimedList = computed(() => allItems.value.filter((s) => s.claimed_by_me))
 
 function briefLabel(s) {
-  return `${settings.value.tournament_name} | ${s.group_name} | ${s.round}-${s.seq} | ${s.matchup || '未填写对阵'}`
+  const t = s.tournament_name || settings.value.tournament_name
+  return `${t} | ${s.group_name} | ${s.round}-${s.seq} | ${s.matchup || '未填写对阵'}`
 }
 
 function openDetail(item) {
-  if (item.kind === 'match') {
-    router.push(`/match/${item.id}`)
-  } else {
-    router.push(`/schedule/${item.id}`)
-  }
+  router.push(`/match/${item.id}`)
 }
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [s, m, g, set] = await Promise.all([getSchedules(), getMatches(), getGroups(), getSettings()])
-    schedules.value = s
+    const [m, g, set] = await Promise.all([getMatches(), getGroupList(), getSettings()])
     matches.value = m
     groups.value = g
     settings.value = set
@@ -101,21 +68,6 @@ async function load() {
     error.value = e.message
   }
   loading.value = false
-}
-
-async function queryMissing() {
-  showMissing.value = true
-  try {
-    missingLinks.value = await getMissingLinks()
-  } catch (e) {
-    missingLinks.value = { total: 0, byGroup: {} }
-    error.value = e.message
-  }
-}
-
-function groupBadge(s) {
-  if (s.kind !== 'schedule') return null
-  return s.linksOk ? '✅ 已传' : '⚠️ 缺链接'
 }
 
 async function submitPwd() {
@@ -147,7 +99,6 @@ onMounted(load)
     <div class="page-head">
       <h2>裁判工作台</h2>
       <div class="head-actions">
-        <button class="btn btn-sm" @click="queryMissing">查询缺链接组别</button>
         <button class="btn btn-sm" @click="showPwd = true">修改密码</button>
       </div>
     </div>
@@ -179,7 +130,7 @@ onMounted(load)
             @click="openDetail(s)"
           >
             <div class="card-top">
-              <span class="badge badge-pending">{{ s.kind === 'match' ? '比赛' : '待完成' }}</span>
+              <span class="badge badge-pending">待完成</span>
               <span class="text-muted">{{ s.time }}</span>
             </div>
             <div class="brief">{{ briefLabel(s) }}</div>
@@ -225,7 +176,6 @@ onMounted(load)
           >
             <div class="card-top">
               <span class="badge badge-completed">已完成</span>
-              <span v-if="groupBadge(s)" class="badge" :class="groupBadge(s).startsWith('✅') ? 'badge-completed' : 'badge-pending'">{{ groupBadge(s) }}</span>
               <span class="text-muted">{{ s.time }}</span>
             </div>
             <div class="brief">{{ briefLabel(s) }}</div>
@@ -233,21 +183,6 @@ onMounted(load)
               <span class="score">{{ s.score }}</span>
               <span class="winner">🏆 {{ s.winner }}</span>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showMissing" class="card missing-card">
-      <h3>未上传链接的日程 <span class="text-muted">（共 {{ missingLinks?.total || 0 }} 场）</span></h3>
-      <div v-if="!missingLinks || !missingLinks.total" class="empty">所有已完成的日程都已上传链接 ✅</div>
-      <div v-else>
-        <div v-for="(list, g) in missingLinks.byGroup" :key="g" class="group-block">
-          <h4>组别 {{ g }}</h4>
-          <div v-for="s in list" :key="s.id" class="missing-item" @click="openDetail(s.id)">
-            <span>{{ s.round }}-{{ s.seq }}</span>
-            <span class="m-matchup">{{ s.matchup }}</span>
-            <span class="btn btn-sm btn-primary">补链接</span>
           </div>
         </div>
       </div>
