@@ -6,8 +6,7 @@ import {
   getGroupList, getTeamList, getStaff, getPlayers,
   addMatchStaff, updateMatchStaff, removeMatchStaff,
   addMatchPlayer, removeMatchPlayer,
-  addMatchVideo, updateVideo, deleteVideo,
-  addPenalty, updatePenalty, deletePenalty
+  addMatchVideo, updateVideo, deleteVideo
 } from '../../api'
 
 const route = useRoute()
@@ -33,19 +32,6 @@ const STAFF_ROLES = [
   { value: 'referee_chief', label: '裁判长' },
   { value: 'coordinator', label: '统筹' },
   { value: 'other', label: '其他' }
-]
-
-const PENALTY_TYPES = [
-  { value: 'warning', label: '警告' },
-  { value: 'points', label: '扣分' },
-  { value: 'fine', label: '罚款' },
-  { value: 'ban', label: '禁赛' }
-]
-
-const PENALTY_STATUS = [
-  { value: 'pending', label: '待处理' },
-  { value: 'decided', label: '已判定' },
-  { value: 'rejected', label: '已驳回' }
 ]
 
 const match = ref(null)
@@ -79,14 +65,9 @@ const videoError = ref('')
 
 const showPenaltyForm = ref(false)
 const editPenalty = ref(null)
-const penaltyForm = ref({ team_id: '', type: 'warning', reason: '', amount: 0, points_deduct: 0, status: 'pending' })
-const penaltySaving = ref(false)
-const penaltyError = ref('')
 
 const roleLabel = (v) => (STAFF_ROLES.find((r) => r.value === v) || {}).label || v
 const statusLabel = (v) => (STATUS_OPTIONS.find((s) => s.value === v) || {}).label || v
-const pTypeLabel = (v) => (PENALTY_TYPES.find((t) => t.value === v) || {}).label || v
-const pStatusLabel = (v) => (PENALTY_STATUS.find((t) => t.value === v) || {}).label || v
 const groupName = (id) => {
   if (!id) return '—'
   const g = groups.value.find((x) => x.id === Number(id))
@@ -288,55 +269,6 @@ async function removeVideo(v) {
   }
 }
 
-function openPenaltyCreate() {
-  editPenalty.value = null
-  penaltyForm.value = { team_id: '', player_id: '', type: 'warning', reason: '', amount: 0, points_deduct: 0, status: 'pending' }
-  penaltyError.value = ''
-  showPenaltyForm.value = true
-}
-
-function openPenaltyEdit(p) {
-  editPenalty.value = p
-  penaltyForm.value = {
-    team_id: p.team_id || '',
-    player_id: p.player_id || '',
-    type: p.type,
-    reason: p.reason || '',
-    amount: p.amount || 0,
-    points_deduct: p.points_deduct || 0,
-    status: p.status
-  }
-  penaltyError.value = ''
-  showPenaltyForm.value = true
-}
-
-async function savePenalty() {
-  penaltyError.value = ''
-  penaltySaving.value = true
-  try {
-    if (editPenalty.value) {
-      await updatePenalty(editPenalty.value.id, penaltyForm.value)
-    } else {
-      await addPenalty(match.value.id, penaltyForm.value)
-    }
-    showPenaltyForm.value = false
-    await load()
-  } catch (e) {
-    penaltyError.value = e.message
-  }
-  penaltySaving.value = false
-}
-
-async function removePenalty(p) {
-  if (!confirm('确认删除该罚单？')) return
-  try {
-    await deletePenalty(p.id)
-    await load()
-  } catch (e) {
-    error.value = e.message
-  }
-}
-
 onMounted(load)
 </script>
 
@@ -520,44 +452,6 @@ onMounted(load)
         <p v-else class="empty-tip">暂无视频链接</p>
       </div>
 
-      <!-- 罚单 -->
-      <div class="card-block">
-        <div class="block-head">
-          <h3>罚单 / 违纪记录</h3>
-          <button class="btn btn-sm btn-primary" @click="openPenaltyCreate">＋ 添加罚单</button>
-        </div>
-        <table v-if="match.penalties.length" class="table">
-          <thead>
-            <tr>
-              <th>类型</th>
-              <th>队伍</th>
-              <th>选手</th>
-              <th>原因</th>
-              <th>罚款</th>
-              <th>扣分</th>
-              <th>状态</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="p in match.penalties" :key="p.id">
-              <td><span class="badge" :class="`badge-${p.type}`">{{ pTypeLabel(p.type) }}</span></td>
-              <td>{{ p.team_name || '-' }}</td>
-              <td>{{ p.player_name || '-' }}</td>
-              <td class="text-muted">{{ p.reason || '-' }}</td>
-              <td class="mono">{{ p.amount ? '¥' + p.amount : '-' }}</td>
-              <td class="mono">{{ p.points_deduct || '-' }}</td>
-              <td>{{ pStatusLabel(p.status) }}</td>
-              <td class="ops">
-                <button class="btn btn-sm" @click="openPenaltyEdit(p)">编辑</button>
-                <button class="btn btn-sm btn-danger" @click="removePenalty(p)">删除</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="empty-tip">暂无罚单</p>
-      </div>
-
       <!-- 编辑比赛 -->
       <div v-if="showForm" class="modal-mask" @click.self="showForm = false">
         <div class="modal wide">
@@ -615,20 +509,15 @@ onMounted(load)
           </div>
           <div class="form-row">
             <div class="form-group" style="max-width: 160px">
-              <label>比分（如 3:2）</label>
+              <label>比分（如 3:2；1:0 或 0:1 自动标记弃权）</label>
               <input v-model="form.score" class="form-control" />
             </div>
-            <div class="form-group" style="max-width: 180px">
-              <label>胜者</label>
-              <input v-model="form.winner" class="form-control" />
-            </div>
             <div class="form-group">
-              <label>状态</label>
-              <select v-model="form.status" class="form-control">
-                <option v-for="s in STATUS_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>
-              </select>
+              <label>结束时间</label>
+              <input v-model="form.end_time" class="form-control" />
             </div>
           </div>
+          <p class="text-muted" style="margin-bottom: 8px">填写比分保存后，将自动判定胜者并填入胜者栏、状态自动变为「已完成」</p>
           <div class="form-group">
             <label>备注</label>
             <input v-model="form.remark" class="form-control" />
@@ -730,63 +619,6 @@ onMounted(load)
           <div class="modal-actions">
             <button class="btn" @click="showVideoForm = false">取消</button>
             <button class="btn btn-primary" :disabled="videoSaving" @click="saveVideo">{{ videoSaving ? '保存中...' : '保存' }}</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 罚单表单 -->
-      <div v-if="showPenaltyForm" class="modal-mask" @click.self="showPenaltyForm = false">
-        <div class="modal">
-          <h3>{{ editPenalty ? '编辑罚单' : '添加罚单' }}</h3>
-          <div class="form-row">
-            <div class="form-group">
-              <label>类型</label>
-              <select v-model="penaltyForm.type" class="form-control">
-                <option v-for="t in PENALTY_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>状态</label>
-              <select v-model="penaltyForm.status" class="form-control">
-                <option v-for="s in PENALTY_STATUS" :key="s.value" :value="s.value">{{ s.label }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>队伍</label>
-              <select v-model="penaltyForm.team_id" class="form-control">
-                <option value="">— 不指定 —</option>
-                <option v-if="match.team_a_id" :value="String(match.team_a_id)">{{ match.team_a_name }}</option>
-                <option v-if="match.team_b_id" :value="String(match.team_b_id)">{{ match.team_b_name }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>选手（可选）</label>
-              <select v-model="penaltyForm.player_id" class="form-control">
-                <option value="">— 不指定 —</option>
-                <option v-for="p in players" :key="p.id" :value="String(p.id)">{{ p.name }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>原因</label>
-            <input v-model="penaltyForm.reason" class="form-control" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>罚款金额（元）</label>
-              <input v-model.number="penaltyForm.amount" type="number" class="form-control" />
-            </div>
-            <div class="form-group">
-              <label>扣分</label>
-              <input v-model.number="penaltyForm.points_deduct" type="number" class="form-control" />
-            </div>
-          </div>
-          <p v-if="penaltyError" class="error">{{ penaltyError }}</p>
-          <div class="modal-actions">
-            <button class="btn" @click="showPenaltyForm = false">取消</button>
-            <button class="btn btn-primary" :disabled="penaltySaving" @click="savePenalty">{{ penaltySaving ? '保存中...' : '保存' }}</button>
           </div>
         </div>
       </div>
