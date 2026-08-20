@@ -39,9 +39,13 @@ npx wrangler d1 create mwlc-db
 # 输出中包含 database_id，复制它
 
 # 把 database_id 填入 wrangler.toml 的 database_id = "..." 并保存
-# 然后执行建表 + 种子数据（预置账号 1000000 / 20605142，密码 MWLC123456）
+# 然后执行迁移（依次 0001 → 0002 → 0003；0001 建表+种子账号 1000000 / 20605142，密码 MWLC123456）
 npx wrangler d1 execute mwlc-db --remote --file migrations/0001_init.sql
+npx wrangler d1 execute mwlc-db --remote --file migrations/0002_rules.sql
+npx wrangler d1 execute mwlc-db --remote --file migrations/0003_rules_registration.sql
 ```
+
+> 升级已有线上数据库时，只需补执行尚未执行过的迁移文件（例如已初始化过 0001，则补 0002、0003）。
 
 ### 2. 创建 R2 存储桶
 
@@ -90,7 +94,7 @@ Pages 项目 → **Custom domains → Add** → 输入你的域名，Cloudflare 
 
 - D1 数据库可在控制台 **D1 → mwlc-db → Export** 导出备份
 - R2 存储可在 **R2 → mwlc-uploads** 查看/下载文件
-- 重置数据：`npx wrangler d1 execute mwlc-db --remote --file migrations/0001_init.sql`（会重建表；如需清空旧数据先删表）
+- 重置数据：`npx wrangler d1 execute mwlc-db --remote --file migrations/0001_init.sql`（会重建表；如需清空旧数据先删表），随后需重跑 0002/0003 迁移
 
 ## 本地开发/测试
 

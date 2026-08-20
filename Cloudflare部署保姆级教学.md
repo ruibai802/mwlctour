@@ -119,9 +119,18 @@ database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # 替换 REPLACE_WITH_YOU
 
 ## 第 6 步：初始化数据库（建表 + 预置账号）
 
+按顺序执行三个迁移文件：
+
 ```bash
 npx wrangler d1 execute mwlc-db --remote --file migrations/0001_init.sql
+npx wrangler d1 execute mwlc-db --remote --file migrations/0002_rules.sql
+npx wrangler d1 execute mwlc-db --remote --file migrations/0003_rules_registration.sql
 ```
+
+- 0001：全部数据表 + 预置账号（1000000 / 20605142，密码 MWLC123456）
+- 0002：多规则支持（rules 表，旧规则迁移为首条）
+- 0003：每份规则可单独配置报名链接（rules.registration_url）
+- 若线上已执行过 0001，只需补执行尚未执行的 0002 / 0003
 
 **预期输出**：显示执行成功，例如：
 
@@ -259,4 +268,4 @@ npx wrangler pages deploy
 - **改代码后更新**（方式 B）：`git add -A && git commit -m "..." && git push`（自动部署）
 - **备份数据库**：控制台 → D1 → mwlc-db → **Export**
 - **查看接口日志**：控制台 → Workers & Pages → 项目 → **Logs**（或 wrangler pages deployment tail）
-- **重置全部数据**：`npx wrangler d1 execute mwlc-db --remote --file migrations/0001_init.sql`（会重建表；想清空先 `DROP TABLE`）
+- **重置全部数据**：`npx wrangler d1 execute mwlc-db --remote --file migrations/0001_init.sql`（会重建表；想清空先 `DROP TABLE`），随后重跑 0002 / 0003
