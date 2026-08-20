@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 import { getSchedules, getMatches, getGroups, getSettings, getMissingLinks, changePassword } from '../api'
 
 const router = useRouter()
+const auth = useAuthStore()
 const activeTab = ref('pending')
 const schedules = ref([])
 const matches = ref([])
@@ -39,6 +41,7 @@ function normalizeSchedule(s) {
 }
 
 function normalizeMatch(m) {
+  const uid = auth.user && String(auth.user.id)
   const g = groups.value.find((x) => String(x.id) === String(m.group_id))
   return {
     kind: 'match',
@@ -53,7 +56,8 @@ function normalizeMatch(m) {
     status: m.status === 'completed' ? 'completed' : 'pending',
     score: m.score || '',
     winner: m.winner || '',
-    linksOk: false
+    linksOk: false,
+    claimed_by_me: String(m.claimed_referee_id || '') === uid || String(m.claimed_recorder_id || '') === uid
   }
 }
 
@@ -69,6 +73,8 @@ const allItems = computed(() => {
 
 const pendingList = computed(() => allItems.value.filter((s) => s.status === 'pending'))
 const completedList = computed(() => allItems.value.filter((s) => s.status === 'completed'))
+// 我接取的日程（以裁判/录像身份接取）
+const myClaimedList = computed(() => allItems.value.filter((s) => s.claimed_by_me))
 
 function briefLabel(s) {
   return `${settings.value.tournament_name} | ${s.group_name} | ${s.round}-${s.seq} | ${s.matchup || '未填写对阵'}`
@@ -155,6 +161,9 @@ onMounted(load)
       <button class="tab" :class="{ active: activeTab === 'completed' }" @click="activeTab = 'completed'">
         已完成 <span class="count">{{ completedList.length }}</span>
       </button>
+      <button class="tab" :class="{ active: activeTab === 'claimed' }" @click="activeTab = 'claimed'">
+        我接取的 <span class="count">{{ myClaimedList.length }}</span>
+      </button>
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
@@ -177,6 +186,29 @@ onMounted(load)
             <div class="tags">
               <span class="tag">房间 {{ s.room }}</span>
               <span class="tag" v-if="s.map">地图 {{ s.map }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="activeTab === 'claimed'">
+        <div v-if="!myClaimedList.length" class="empty">你还没有接取任何日程，进入比赛详情点击「接取」即可负责该场</div>
+        <div v-else class="schedule-grid">
+          <div
+            v-for="s in myClaimedList"
+            :key="s.kind + '-' + s.id"
+            class="card schedule-card pending"
+            @click="openDetail(s)"
+          >
+            <div class="card-top">
+              <span class="badge badge-pending">已接取</span>
+              <span class="text-muted">{{ s.time }}</span>
+            </div>
+            <div class="brief">{{ briefLabel(s) }}</div>
+            <div class="tags">
+              <span class="tag">房间 {{ s.room }}</span>
+              <span class="tag" v-if="s.map">地图 {{ s.map }}</span>
+              <span class="tag">{{ s.status === 'completed' ? '已完成' : '进行中/待开赛' }}</span>
             </div>
           </div>
         </div>

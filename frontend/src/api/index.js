@@ -152,6 +152,8 @@ export const removeMatchPlayer = (matchId, playerRecId) => request(`/matches/${m
 export const addMatchVideo = (matchId, data) => request(`/matches/${matchId}/videos`, { method: 'POST', body: JSON.stringify(data) })
 export const updateVideo = (id, data) => request(`/videos/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteVideo = (id) => request(`/videos/${id}`, { method: 'DELETE' })
+export const claimMatch = (matchId, role) => request(`/matches/${matchId}/claim`, { method: 'POST', body: JSON.stringify({ action: 'claim', role }) })
+export const unclaimMatch = (matchId, role) => request(`/matches/${matchId}/claim`, { method: 'POST', body: JSON.stringify({ action: 'unclaim', role }) })
 
 // ===== 多规则（每赛事多份规则）=====
 export const getRules = () => request('/rules')

@@ -47,6 +47,11 @@ export async function formatMatchDetail(env, row) {
     getTeamPlayersFor(env, row, 'a', mup),
     getTeamPlayersFor(env, row, 'b', mup)
   ])
+  // 接取人姓名
+  const [refName, recName] = await Promise.all([
+    resolveUserName(env, row.claimed_referee_id),
+    resolveUserName(env, row.claimed_recorder_id)
+  ])
   return {
     ...row,
     staff: staff.results || staff,
@@ -54,8 +59,17 @@ export async function formatMatchDetail(env, row) {
     videos: videos.results || videos,
     penalties: penalties.results || penalties,
     team_a_players: teamAPlayers,
-    team_b_players: teamBPlayers
+    team_b_players: teamBPlayers,
+    claimed_referee_name: refName,
+    claimed_recorder_name: recName
   }
+}
+
+// 按用户 ID 取姓名（接取人显示用）
+async function resolveUserName(env, userId) {
+  if (!userId || Number(userId) <= 0) return ''
+  const u = await env.DB.prepare('SELECT name FROM users WHERE id = ?').bind(Number(userId)).first()
+  return u ? u.name : ''
 }
 
 // 队伍全名单（P 位 / 姓名 / fanbook / 游戏ID）

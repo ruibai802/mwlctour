@@ -6,11 +6,14 @@ import {
   getGroupList, getTeamList, getStaff, getPlayers,
   addMatchStaff, updateMatchStaff, removeMatchStaff,
   addMatchPlayer, removeMatchPlayer,
-  addMatchVideo, updateVideo, deleteVideo
+  addMatchVideo, updateVideo, deleteVideo,
+  claimMatch, unclaimMatch
 } from '../../api'
+import { useAuthStore } from '../../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 // 返回：优先历史记录，否则管理员回比赛列表、其他身份回工作台
 function backToList() {
@@ -72,6 +75,41 @@ const videoError = ref('')
 
 const showPenaltyForm = ref(false)
 const editPenalty = ref(null)
+
+// ===== 接取日程 =====
+const claimMsg = ref('')
+const claimErr = ref('')
+const uid = () => (auth.user && String(auth.user.id)) || ''
+const claimedReferee = computed(() => !!match.value && !!match.value.claimed_referee_id && String(match.value.claimed_referee_id) === uid())
+const claimedRecorder = computed(() => !!match.value && !!match.value.claimed_recorder_id && String(match.value.claimed_recorder_id) === uid())
+const myAnyClaim = computed(() => claimedReferee.value || claimedRecorder.value)
+
+async function doClaim(role) {
+  claimErr.value = ''
+  claimMsg.value = ''
+  try {
+    const res = await claimMatch(match.value.id, role)
+    claimMsg.value = res.message
+    await load()
+    setTimeout(() => (claimMsg.value = ''), 2500)
+  } catch (e) {
+    claimErr.value = e.message
+  }
+}
+
+async function doUnclaim() {
+  claimErr.value = ''
+  claimMsg.value = ''
+  try {
+    const role = claimedReferee.value ? 'referee' : 'recorder'
+    const res = await unclaimMatch(match.value.id, role)
+    claimMsg.value = res.message
+    await load()
+    setTimeout(() => (claimMsg.value = ''), 2500)
+  } catch (e) {
+    claimErr.value = e.message
+  }
+}
 
 const roleLabel = (v) => (STAFF_ROLES.find((r) => r.value === v) || {}).label || v
 const statusLabel = (v) => (STATUS_OPTIONS.find((s) => s.value === v) || {}).label || v
@@ -306,6 +344,27 @@ onMounted(load)
           <span v-if="match.remark">备注：{{ match.remark }}</span>
         </div>
         <button class="btn btn-sm" @click="openEdit">编辑比赛 / 录入比分</button>
+      </div>
+
+      <!-- 接取日程 -->
+      <div class="card-block claim-card">
+        <div class="claim-info">
+          <span class="text-muted">接取状态：</span>
+          <span class="tag" :class="{ 'tag-ok': match.claimed_referee_name }">裁判：{{ match.claimed_referee_name || '未接取' }}</span>
+          <span class="tag" :class="{ 'tag-ok': match.claimed_recorder_name }">录像：{{ match.claimed_recorder_name || '未接取' }}</span>
+        </div>
+        <div class="claim-actions">
+          <button class="btn btn-sm btn-primary" :disabled="claimedReferee || !!match.claimed_referee_id" @click="doClaim('referee')">
+            {{ claimedReferee ? '✔ 已以裁判接取' : (match.claimed_referee_id ? '裁判已接取' : '以裁判接取') }}
+          </button>
+          <button class="btn btn-sm btn-primary" :disabled="claimedRecorder || !!match.claimed_recorder_id" @click="doClaim('recorder')">
+            {{ claimedRecorder ? '✔ 已以录像接取' : (match.claimed_recorder_id ? '录像已接取' : '以录像接取') }}
+          </button>
+          <button v-if="myAnyClaim" class="btn btn-sm" @click="doUnclaim">取消我的接取</button>
+        </div>
+        <p class="text-muted" style="margin-top: 6px">接取后，该日程仅由接取的裁判/录像（及管理员）更新比分</p>
+        <p v-if="claimMsg" class="success" style="margin-top: 6px">{{ claimMsg }}</p>
+        <p v-if="claimErr" class="error" style="margin-top: 6px">{{ claimErr }}</p>
       </div>
 
       <!-- 双方名单（自动提取自上传的选手名单） -->
@@ -667,6 +726,30 @@ onMounted(load)
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.claim-card {
+  margin-bottom: 14px;
+}
+
+.claim-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.claim-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag-ok {
+  border-color: var(--green) !important;
+  color: var(--green) !important;
+  background: rgba(52, 211, 153, 0.12) !important;
 }
 
 .roster-team h4 {
