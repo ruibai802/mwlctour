@@ -332,7 +332,7 @@ onMounted(load)
     <div v-if="importOpen" class="modal-mask" @click.self="importOpen = false">
       <div class="modal wide">
         <h3>批量导入选手名单</h3>
-        <p class="text-muted" style="margin-bottom:14px">文件：{{ fileName }} · 共 {{ parsed.rows.length }} 行，请将列映射到系统字段</p>
+        <p class="text-muted" style="margin-bottom:14px">文件：{{ fileName }} · 共 {{ parsed.rows.length }} 行，请将列映射到系统字段。<b>导入后按「队伍名」自动同步到队伍管理（自动建队并关联队员）。</b></p>
         <div class="map-grid">
           <div v-for="(label, field) in FIELD_LABELS" :key="field" class="form-group">
             <label>{{ label }} <span v-if="field === 'team' || field === 'name'" class="req">*</span></label>

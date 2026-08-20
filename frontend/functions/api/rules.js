@@ -26,13 +26,14 @@ export async function onRequestPost(context) {
     const tid = await resolveTournamentId(request, env)
     const maxSort = await env.DB.prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM rules WHERE tournament_id = ?').bind(tid).first()
     const info = await env.DB.prepare(
-      'INSERT INTO rules (tournament_id, title, content, background, content_background, sort) VALUES (?,?,?,?,?,?)'
+      'INSERT INTO rules (tournament_id, title, content, background, content_background, registration_url, sort) VALUES (?,?,?,?,?,?,?)'
     ).bind(
       tid,
       title,
       String((body && body.content) || ''),
       String((body && body.background) || ''),
       String((body && body.content_background) || ''),
+      String((body && body.registration_url) || ''),
       (maxSort ? maxSort.m : 0) + 1
     ).run()
     const row = await env.DB.prepare('SELECT * FROM rules WHERE id = ?').bind(info.meta.last_row_id).first()

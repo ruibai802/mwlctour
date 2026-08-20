@@ -113,6 +113,7 @@ export const getStaff = (params = {}) => {
   return request(`/staff${q ? `?${q}` : ''}`)
 }
 export const createStaff = (data) => request('/staff', { method: 'POST', body: JSON.stringify(data) })
+export const importStaff = (list) => request('/staff/import', { method: 'POST', body: JSON.stringify(list) })
 export const getStaffDetail = (id) => request(`/staff/${id}`)
 export const updateStaff = (id, data) => request(`/staff/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteStaff = (id) => request(`/staff/${id}`, { method: 'DELETE' })

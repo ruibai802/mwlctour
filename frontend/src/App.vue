@@ -61,7 +61,7 @@ onMounted(async () => {
         </router-link>
         <button class="nav-toggle" @click="navOpen = !navOpen">☰</button>
         <nav class="topnav" :class="{ open: navOpen }">
-          <router-link to="/">赛事选择</router-link>
+          <router-link to="/rules/default">赛事规则</router-link>
           <template v-if="auth.isLoggedIn">
             <router-link to="/dashboard">裁判工作台</router-link>
             <router-link v-if="auth.canEditRules" to="/rules-edit">规则管理</router-link>
@@ -69,15 +69,6 @@ onMounted(async () => {
           </template>
         </nav>
         <div class="user-area">
-          <select
-            v-if="auth.isLoggedIn"
-            class="tournament-select"
-            :title="'切换赛事：' + switchErr"
-            :value="tournament.currentId"
-            @change="switchTournament"
-          >
-            <option v-for="t in tournament.list" :key="t.id" :value="t.id">{{ t.name }}</option>
-          </select>
           <template v-if="auth.isLoggedIn">
             <router-link to="/settings" class="user-chip" title="个人设置">
               <img v-if="auth.user?.avatar" :src="auth.user.avatar" alt="头像" class="user-avatar" />

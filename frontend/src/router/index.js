@@ -3,10 +3,9 @@ import { useAuthStore } from '../stores/auth'
 
 const routes = [
   {
+    // 单赛事组：首页直接进入规则/报名页（多赛事代码保留，界面隐藏）
     path: '/',
-    name: 'home',
-    component: () => import('../views/TournamentSelect.vue'),
-    meta: { title: '选择赛事' }
+    redirect: '/rules/default'
   },
   {
     path: '/rules/:code',

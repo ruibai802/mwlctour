@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 import {
-  getStaff, createStaff, updateStaff, deleteStaff,
+  getStaff, createStaff, updateStaff, deleteStaff, importStaff,
   getAttendance, recordAttendance, deleteAttendance,
   getMembers
 } from '../../api'
@@ -44,6 +46,109 @@ const atdMsg = ref('')
 
 const statusLabel = (v) => (STATUS_OPTIONS.find((s) => s.value === v) || {}).label || v
 const atdStatusLabel = (v) => (ATD_STATUS_OPTIONS.find((s) => s.value === v) || {}).label || v
+
+// ===== 批量导入 =====
+const importOpen = ref(false)
+const fileName = ref('')
+const parsed = ref({ columns: [], rows: [] })
+const mapping = ref({ name: '', fanbook_id: '', title: '', department: '', phone: '', status: '' })
+const importError = ref('')
+const importMsg = ref('')
+
+const STAFF_FIELD_LABELS = {
+  name: '姓名 *',
+  fanbook_id: 'fanbookID',
+  title: '身份',
+  department: '部门',
+  phone: '电话',
+  status: '状态(active/inactive/left)'
+}
+
+function autoMatch(col) {
+  const c = String(col).toLowerCase()
+  if (/名字|姓名|name/.test(c)) return 'name'
+  if (/fanbook|fb/.test(c)) return 'fanbook_id'
+  if (/身份|职位|title/.test(c)) return 'title'
+  if (/部门|department/.test(c)) return 'department'
+  if (/电话|手机|phone/.test(c)) return 'phone'
+  if (/状态|status/.test(c)) return 'status'
+  return ''
+}
+
+function parseStaffFile(file) {
+  importError.value = ''
+  importMsg.value = ''
+  fileName.value = file.name
+  const ext = file.name.split('.').pop().toLowerCase()
+  const onRows = (rows) => {
+    if (!rows.length) {
+      importError.value = '文件内容为空'
+      return
+    }
+    const columns = Object.keys(rows[0])
+    parsed.value = { columns, rows }
+    mapping.value = {}
+    for (const c of columns) {
+      const m = autoMatch(c)
+      if (m && !mapping.value[m]) mapping.value[m] = c
+    }
+    importOpen.value = true
+  }
+  if (ext === 'csv' || ext === 'txt') {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => onRows(res.data)
+    })
+  } else {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const wb = XLSX.read(e.target.result, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      onRows(XLSX.utils.sheet_to_json(ws, { defval: '' }))
+    }
+    reader.readAsArrayBuffer(file)
+  }
+}
+
+const staffPreviewRows = computed(() => parsed.value.rows.slice(0, 5))
+
+function buildStaffImportList() {
+  const m = mapping.value
+  const list = []
+  for (const row of parsed.value.rows) {
+    const item = {}
+    for (const field of Object.keys(m)) {
+      const col = m[field]
+      if (col) item[field] = row[col]
+    }
+    if (!item.name) continue
+    list.push(item)
+  }
+  return list
+}
+
+async function doStaffImport() {
+  importError.value = ''
+  importMsg.value = ''
+  if (!mapping.value.name) {
+    importError.value = '请为「姓名」选择对应列'
+    return
+  }
+  const list = buildStaffImportList()
+  if (!list.length) {
+    importError.value = '没有可导入的数据行（姓名必填）'
+    return
+  }
+  try {
+    const res = await importStaff(list)
+    importMsg.value = res.message
+    importOpen.value = false
+    await load()
+  } catch (e) {
+    importError.value = e.message
+  }
+}
 
 async function load() {
   loading.value = true
@@ -209,6 +314,10 @@ onMounted(load)
       <div class="toolbar">
         <span class="text-muted">赛事工作人员档案；关联登录成员后，该成员可确认本人负责的比赛任务</span>
         <div class="actions">
+          <label class="btn btn-sm import-btn">
+            批量导入
+            <input type="file" accept=".csv,.txt,.xlsx,.xls" class="hidden-input" @change="(e) => e.target.files[0] && parseStaffFile(e.target.files[0])" />
+          </label>
           <button class="btn btn-primary" @click="openCreate">＋ 添加工作人员</button>
         </div>
       </div>
@@ -402,10 +511,93 @@ onMounted(load)
         </div>
       </div>
     </div>
+
+    <!-- 批量导入工作人员 -->
+    <div v-if="importOpen" class="modal-mask" @click.self="importOpen = false">
+      <div class="modal wide">
+        <h3>批量导入工作人员</h3>
+        <p class="text-muted" style="margin-bottom:14px">文件：{{ fileName }} · 共 {{ parsed.rows.length }} 行，请将列映射到系统字段（姓名必填；同 fanbookID 自动跳过）</p>
+        <div class="map-grid">
+          <div v-for="(label, field) in STAFF_FIELD_LABELS" :key="field" class="form-group">
+            <label>{{ label }}</label>
+            <select v-model="mapping[field]" class="form-control">
+              <option value="">— 不导入 —</option>
+              <option v-for="c in parsed.columns" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="preview">
+          <div class="preview-head">数据预览（前 5 行）</div>
+          <div v-for="(r, i) in staffPreviewRows" :key="i" class="preview-row">
+            <span v-for="c in parsed.columns" :key="c" class="pv-cell" :title="c">{{ r[c] || '' }}</span>
+          </div>
+        </div>
+        <p v-if="importMsg" class="success">{{ importMsg }}</p>
+        <p v-if="importError" class="error">{{ importError }}</p>
+        <div class="modal-actions">
+          <button class="btn" @click="importOpen = false">取消</button>
+          <button class="btn btn-primary" @click="doStaffImport">确认导入</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.hidden-input {
+  display: none;
+}
+
+.import-btn {
+  position: relative;
+}
+
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.preview {
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+
+.preview-head {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.preview-row {
+  display: flex;
+  gap: 12px;
+  padding: 4px 0;
+  border-top: 1px dashed rgba(148, 163, 184, 0.15);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pv-cell {
+  min-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-sub);
+}
+
+.modal.wide {
+  max-width: 760px;
+}
+
+.success {
+  color: var(--green);
+  margin-bottom: 12px;
+}
+
 .sub-tabs {
   display: flex;
   gap: 6px;

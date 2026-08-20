@@ -82,7 +82,12 @@ const contentStyle = computed(() => ({
   fontSize: `${fontSize.value}px`
 }))
 
-const registrationUrl = computed(() => (tournament.value && (tournament.value.registration_url || '').trim()) || '')
+// 报名链接：优先当前规则配置的链接，其次赛事级链接
+const registrationUrl = computed(() => {
+  const ruleUrl = (currentRule.value && (currentRule.value.registration_url || '').trim()) || ''
+  if (ruleUrl) return ruleUrl
+  return (tournament.value && (tournament.value.registration_url || '').trim()) || ''
+})
 
 function buildToc() {
   toc.value = []

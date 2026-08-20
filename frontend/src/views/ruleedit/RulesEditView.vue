@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
@@ -298,8 +298,26 @@ function applyRuleToEditor() {
   const r = currentRule.value
   background.value = (r && r.background) || ''
   contentBg.value = (r && r.content_background) || ''
+  ruleRegUrl.value = (r && r.registration_url) || ''
   if (editor.value) {
     editor.value.commands.setContent((r && r.content) || '')
+  }
+}
+
+// 当前规则的报名链接
+const ruleRegUrl = ref('')
+
+async function saveRuleRegUrl() {
+  if (!currentRule.value) return
+  err.value = ''
+  try {
+    await apiUpdateRule(currentRule.value.id, { registration_url: ruleRegUrl.value.trim() })
+    const idx = rulesList.value.findIndex((x) => x.id === currentRule.value.id)
+    if (idx >= 0) rulesList.value[idx] = { ...rulesList.value[idx], registration_url: ruleRegUrl.value.trim() }
+    msg.value = '报名链接已保存'
+    setTimeout(() => (msg.value = ''), 2000)
+  } catch (e) {
+    err.value = e.message
   }
 }
 
@@ -567,6 +585,11 @@ onBeforeUnmount(() => {
           >{{ r.title }}</button>
           <span v-if="!rulesList.length" class="text-muted">暂无规则，点击「新建规则」创建</span>
         </div>
+        <div v-if="currentRule" class="rule-registration">
+          <span class="bg-label">「{{ currentRule.title }}」报名链接：</span>
+          <input v-model="ruleRegUrl" class="form-control reg-input" placeholder="https://...（留空则用赛事级报名链接）" />
+          <button class="btn btn-sm" @click="saveRuleRegUrl">保存链接</button>
+        </div>
       </div>
 
       <div class="editor-wrap card">
@@ -786,6 +809,21 @@ onBeforeUnmount(() => {
   border-color: transparent;
   color: #fff;
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
+.rule-registration {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.reg-input {
+  flex: 1;
+  max-width: 420px;
 }
 
 .field {

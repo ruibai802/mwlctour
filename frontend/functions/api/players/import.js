@@ -32,13 +32,33 @@ export async function onRequestPost(context) {
     const stmt = env.DB.prepare('INSERT INTO players (team, name, fanbook, game_id, slot, tournament_id) VALUES (?,?,?,?,?,?)')
     let inserted = 0
     let skipped = 0
+    let teamsCreated = 0
     for (const item of list) {
       const p = cleanPlayer(item)
       if (validate(p)) { skipped++; continue }
-      await stmt.bind(p.team, p.name, p.fanbook, p.game_id, p.slot, tid).run()
+      // 同步队伍管理：按队伍名查找，不存在则自动创建
+      let team = await env.DB.prepare('SELECT id FROM teams WHERE tournament_id = ? AND name = ?').bind(tid, p.team).first()
+      if (!team) {
+        const ti = await env.DB.prepare('INSERT INTO teams (tournament_id, name, status) VALUES (?,?,?)').bind(tid, p.team, 'active').run()
+        team = { id: ti.meta.last_row_id }
+        teamsCreated++
+      }
+      const info = await stmt.bind(p.team, p.name, p.fanbook, p.game_id, p.slot, tid).run()
+      const playerId = info.meta.last_row_id
+      // 队伍-队员关联
+      const existsTp = await env.DB.prepare('SELECT id FROM team_players WHERE team_id = ? AND player_id = ?').bind(team.id, playerId).first()
+      if (!existsTp) {
+        await env.DB.prepare('INSERT INTO team_players (team_id, player_id, slot, remark) VALUES (?,?,?,?)')
+          .bind(team.id, playerId, p.slot || '', '').run()
+      }
       inserted++
     }
-    return json({ message: `导入完成：新增 ${inserted} 条，跳过 ${skipped} 条`, inserted, skipped })
+    return json({
+      message: `导入完成：新增 ${inserted} 条，跳过 ${skipped} 条，自动创建队伍 ${teamsCreated} 个（已同步到队伍管理）`,
+      inserted,
+      skipped,
+      teamsCreated
+    })
   } catch (e) {
     return handleError(e)
   }
