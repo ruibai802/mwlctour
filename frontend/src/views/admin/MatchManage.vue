@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  getMatches, createMatch, updateMatch, deleteMatch,
+  getMatches, createMatch, updateMatch, deleteMatch, getTeamDetail,
   getGroupList, getTeamList, getStaff, getSettings
 } from '../../api'
 
@@ -89,22 +89,50 @@ function openCreate() {
 function openEdit(m) {
   editing.value = m
   form.value = {
-    group_id: m.group_id || '',
+    tournament_name: m.tournament_name || '',
+    group_id: m.group_id ? String(m.group_id) : '',
     round: m.round,
     seq: m.seq,
-    matchup: m.matchup,
+    matchup: m.matchup || '',
     start_time: m.start_time || '',
     end_time: m.end_time || '',
-    team_a_id: m.team_a_id || '',
-    team_b_id: m.team_b_id || '',
-    team_a_name: m.team_a_name,
-    team_b_name: m.team_b_name,
+    team_a_id: m.team_a_id ? String(m.team_a_id) : '',
+    team_b_id: m.team_b_id ? String(m.team_b_id) : '',
+    team_a_name: m.team_a_name || '',
+    team_b_name: m.team_b_name || '',
     map: m.map || '',
     status: m.status,
     remark: m.remark || ''
   }
   formError.value = ''
   showForm.value = true
+  // 载入队伍名单预览
+  onTeamChange('a')
+  onTeamChange('b')
+}
+
+// 选择队伍后自动填充队伍名并载入名单预览（选手名单同步到日程）
+const teamAPlayers = ref([])
+const teamBPlayers = ref([])
+async function onTeamChange(side) {
+  const id = side === 'a' ? form.value.team_a_id : form.value.team_b_id
+  if (!id) {
+    if (side === 'a') { teamAPlayers.value = []; form.value.team_a_name = '' }
+    else { teamBPlayers.value = []; form.value.team_b_name = '' }
+    return
+  }
+  try {
+    const d = await getTeamDetail(id)
+    if (side === 'a') {
+      teamAPlayers.value = d.players || []
+      form.value.team_a_name = d.name || ''
+    } else {
+      teamBPlayers.value = d.players || []
+      form.value.team_b_name = d.name || ''
+    }
+  } catch (e) {
+    // 队伍详情加载失败不阻塞
+  }
 }
 
 async function save() {
@@ -187,6 +215,7 @@ onMounted(() => {
       <table class="table">
         <thead>
           <tr>
+            <th>赛事</th>
             <th>分组</th>
             <th>轮次-序号</th>
             <th>房间</th>
@@ -200,6 +229,7 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-for="m in matches" :key="m.id" @click="goDetail(m)" class="clickable">
+            <td>{{ m.tournament_name || '-' }}</td>
             <td>{{ groupName(m.group_id) }}</td>
             <td class="mono">{{ m.round }}-{{ m.seq }}</td>
             <td class="mono">{{ m.room || '-' }}</td>
@@ -214,7 +244,7 @@ onMounted(() => {
             </td>
           </tr>
           <tr v-if="!matches.length">
-            <td colspan="9" class="empty-tip">暂无比赛</td>
+            <td colspan="10" class="empty-tip">暂无比赛</td>
           </tr>
         </tbody>
       </table>
@@ -255,17 +285,25 @@ onMounted(() => {
         <div class="form-row">
           <div class="form-group">
             <label>A 队 *</label>
-            <select v-model="form.team_a_id" class="form-control">
+            <select v-model="form.team_a_id" class="form-control" @change="onTeamChange('a')">
               <option value="">— 选择队伍 —</option>
               <option v-for="t in teams" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
             </select>
+            <div v-if="teamAPlayers.length" class="team-preview">
+              <span class="text-muted">名单 {{ teamAPlayers.length }} 人：</span>
+              <span v-for="p in teamAPlayers.slice(0, 7)" :key="p.id" class="pv-tag">{{ p.slot || p.team_slot || '?' }}·{{ p.name }}</span>
+            </div>
           </div>
           <div class="form-group">
             <label>B 队 *</label>
-            <select v-model="form.team_b_id" class="form-control">
+            <select v-model="form.team_b_id" class="form-control" @change="onTeamChange('b')">
               <option value="">— 选择队伍 —</option>
               <option v-for="t in teams" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
             </select>
+            <div v-if="teamBPlayers.length" class="team-preview">
+              <span class="text-muted">名单 {{ teamBPlayers.length }} 人：</span>
+              <span v-for="p in teamBPlayers.slice(0, 7)" :key="p.id" class="pv-tag">{{ p.slot || p.team_slot || '?' }}·{{ p.name }}</span>
+            </div>
           </div>
         </div>
         <div class="form-row">
@@ -278,8 +316,18 @@ onMounted(() => {
             <input v-model="form.end_time" class="form-control" placeholder="可后补" />
           </div>
           <div class="form-group">
-            <label>地图</label>
-            <input v-model="form.map" class="form-control" />
+            <label>地图（从「数据上传」中添加）</label>
+            <div class="map-options">
+              <button
+                v-for="mp in settings.maps"
+                :key="mp"
+                type="button"
+                class="map-pill"
+                :class="{ active: form.map === mp }"
+                @click="form.map = mp"
+              >{{ mp }}</button>
+              <input v-model="form.map" class="form-control map-input" placeholder="或手动输入" />
+            </div>
           </div>
         </div>
         <div class="form-group">
@@ -317,6 +365,55 @@ onMounted(() => {
 .error {
   color: var(--red);
   margin-bottom: 12px;
+}
+
+.team-preview {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.pv-tag {
+  font-size: 11px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--text-sub);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.map-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.map-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  font-size: 13px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.map-pill:hover {
+  border-color: var(--accent);
+}
+
+.map-pill.active {
+  background: var(--accent-grad);
+  border-color: transparent;
+  color: #fff;
+}
+
+.map-input {
+  max-width: 180px;
 }
 
 .table-wrap {

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getMatch, updateMatch,
-  getGroupList, getTeamList, getStaff, getPlayers,
+  getGroupList, getTeamList, getStaff, getPlayers, getSettings,
   addMatchStaff, updateMatchStaff, removeMatchStaff,
   addMatchPlayer, removeMatchPlayer,
   addMatchVideo, updateVideo, deleteVideo,
@@ -40,6 +40,7 @@ const STAFF_ROLES = [
 const match = ref(null)
 const groups = ref([])
 const teams = ref([])
+const settings = ref({ tournament_names: [], maps: [] })
 
 // 对阵双方名字：优先从对阵名（如 "左卫门 VS 王"）解析，回退队伍字段名
 const matchupParts = computed(() => {
@@ -133,18 +134,20 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [m, g, t, s, p] = await Promise.all([
+    const [m, g, t, s, p, set] = await Promise.all([
       getMatch(route.params.id),
       getGroupList(),
       getTeamList(),
       getStaff(),
-      getPlayers()
+      getPlayers(),
+      getSettings()
     ])
     match.value = m
     groups.value = g
     teams.value = t
     staffList.value = s
     players.value = p
+    settings.value = set
   } catch (e) {
     error.value = e.message
   }
@@ -154,14 +157,15 @@ async function load() {
 function openEdit() {
   const m = match.value
   form.value = {
-    group_id: m.group_id || '',
+    tournament_name: m.tournament_name || '',
+    group_id: m.group_id ? String(m.group_id) : '',
     round: m.round,
     seq: m.seq,
     matchup: m.matchup,
     start_time: m.start_time || '',
     end_time: m.end_time || '',
-    team_a_id: m.team_a_id || '',
-    team_b_id: m.team_b_id || '',
+    team_a_id: m.team_a_id ? String(m.team_a_id) : '',
+    team_b_id: m.team_b_id ? String(m.team_b_id) : '',
     team_a_name: m.team_a_name,
     team_b_name: m.team_b_name,
     map: m.map || '',
@@ -337,6 +341,7 @@ onMounted(load)
         </div>
         <div class="meta">
           <span v-if="match.matchup && !/VS|vs|对/.test(match.matchup)">{{ match.matchup }}</span>
+          <span v-if="match.tournament_name">赛事：{{ match.tournament_name }}</span>
           <span>{{ match.start_time || '时间待定' }}{{ match.end_time ? ' ~ ' + match.end_time : '' }}</span>
           <span v-if="match.map">地图：{{ match.map }}</span>
           <span v-if="match.score">比分：<b class="mono">{{ match.score }}</b></span>
@@ -523,6 +528,13 @@ onMounted(load)
         <div class="modal wide">
           <h3>编辑比赛</h3>
           <div class="form-row">
+            <div class="form-group">
+              <label>赛事名称</label>
+              <select v-model="form.tournament_name" class="form-control">
+                <option value="">— 不指定 —</option>
+                <option v-for="n in settings.tournament_names" :key="n" :value="n">{{ n }}</option>
+              </select>
+            </div>
             <div class="form-group">
               <label>分组</label>
               <select v-model="form.group_id" class="form-control">
