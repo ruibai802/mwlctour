@@ -10,6 +10,9 @@ function parseMaps(maps) {
 export async function onRequestGet(context) {
   const { request, env, params } = context
   try {
+    const url = new URL(request.url)
+    // light=1：规则列表不含完整 content（规则卡片页只需标题/摘要，大幅减小传输）
+    const light = url.searchParams.get('light') === '1'
     const t = await env.DB.prepare('SELECT * FROM tournaments WHERE code = ?').bind(String(params.param)).first()
     if (!t) return notFound('赛事不存在')
     const banners = await env.DB.prepare(
@@ -22,6 +25,20 @@ export async function onRequestGet(context) {
     const rules = await env.DB.prepare('SELECT * FROM rules WHERE tournament_id = ? ORDER BY sort, id').bind(t.id).all()
     let maps = []
     try { maps = JSON.parse(t.maps || '[]') } catch (e) { maps = [] }
+    // light 模式剥离大字段 content（卡片页摘要由服务端按正文前 80 字生成，无需传输完整正文）
+    let ruleOut = (rules.results || rules)
+    if (light) {
+      ruleOut = ruleOut.map((r) => {
+        const { content, ...rest } = r
+        const text = String(content || '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+        rest.summary = text ? (text.length > 80 ? text.slice(0, 80) + '…' : text) : ''
+        return rest
+      })
+    }
     return json({
       id: t.id,
       code: t.code,
@@ -34,7 +51,7 @@ export async function onRequestGet(context) {
       maps,
       banners: banners.results || banners,
       rosters: rosters.results || rosters,
-      rules: rules.results || rules
+      rules: ruleOut
     })
   } catch (e) {
     return handleError(e)

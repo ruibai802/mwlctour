@@ -86,7 +86,10 @@ export const importPlayers = (list) => request('/players/import', { method: 'POS
 export const importMembers = (list) => request('/members/import', { method: 'POST', body: JSON.stringify(list) })
 
 export const getTournaments = () => request('/tournaments')
-export const getTournament = (code) => request(`/tournaments/${code}`)
+export const getTournament = (code, opts = {}) => {
+  const q = opts.light ? '?light=1' : ''
+  return request(`/tournaments/${code}${q}`)
+}
 export const createTournament = (data) => request('/tournaments', { method: 'POST', body: JSON.stringify(data) })
 export const updateTournament = (id, data) => request(`/tournaments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteTournament = (id) => request(`/tournaments/${id}`, { method: 'DELETE' })

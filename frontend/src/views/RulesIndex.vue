@@ -12,9 +12,11 @@ const err = ref('')
 
 const rules = computed(() => (tournament.value && Array.isArray(tournament.value.rules) ? tournament.value.rules : []))
 
-// 内容摘要：去 HTML 标签取纯文本前 80 字
-function summary(html) {
-  const text = String(html || '')
+// 内容摘要：优先服务端 light 摘要，否则去 HTML 标签取纯文本前 80 字
+function summary(r) {
+  if (r && r.summary) return r.summary
+  const html = (r && r.content) || ''
+  const text = String(html)
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ')
@@ -40,7 +42,8 @@ function register(r, e) {
 
 onMounted(async () => {
   try {
-    tournament.value = await getTournament(String(route.params.code || 'default'))
+    // 卡片列表页用 light 模式：不拉取规则正文（数 MB），只取标题/链接等，加载更快
+    tournament.value = await getTournament(String(route.params.code || 'default'), { light: true })
   } catch (e) {
     err.value = e.message
   }
@@ -73,7 +76,7 @@ onMounted(async () => {
             <span class="card-go">查看 →</span>
           </div>
           <h3 class="card-name">{{ r.title }}</h3>
-          <p class="card-desc">{{ summary(r.content) }}</p>
+          <p class="card-desc">{{ summary(r) }}</p>
           <div class="card-actions">
             <button
               class="btn btn-sm btn-primary"
