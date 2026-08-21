@@ -1,5 +1,5 @@
 // /api/rules — 规则列表(GET) / 新建(POST)
-import { currentUser, canEditRules, json, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
+import { currentUser, canEditRules, json, jsonGz, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
 import { resolveTournamentId, handleError } from '../_lib/util.js'
 
 export async function onRequestGet(context) {
@@ -7,7 +7,7 @@ export async function onRequestGet(context) {
   try {
     const tid = await resolveTournamentId(request, env)
     const rows = await env.DB.prepare('SELECT * FROM rules WHERE tournament_id = ? ORDER BY sort, id').bind(tid).all()
-    return json(rows.results || rows)
+    return jsonGz(rows.results || rows)
   } catch (e) {
     return handleError(e)
   }
