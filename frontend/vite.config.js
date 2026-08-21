@@ -17,6 +17,10 @@ function obfuscatePlugin() {
         const chunk = bundle[key]
         if (!chunk || chunk.type !== 'chunk' || !key.endsWith('.js')) continue
         if (!chunk.code || chunk.code.includes('@vite/')) continue
+        // 跳过含 Vite 运行时（modulepreload / __vite__mapDeps / __vitePreload）的入口 chunk：
+        // 这些代码负责动态注入异步组件的 CSS，混淆会破坏 modulepreload 的依赖映射，
+        // 导致组件样式丢失（只剩全局背景和文字）。
+        if (/__vitePreload|__vite__mapDeps|modulepreload/.test(chunk.code)) continue
         try {
           const result = obfuscator.obfuscate(chunk.code, {
             compact: true,
