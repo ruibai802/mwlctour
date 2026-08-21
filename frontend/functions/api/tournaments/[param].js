@@ -1,5 +1,5 @@
 // /api/tournaments/:param — 赛事详情(GET by code)/修改(PUT by id)/删除(DELETE by id)
-import { currentUser, canEditRules, isAdmin, json, unauthorized, forbidden, badRequest, notFound } from '../../_lib/auth.js'
+import { currentUser, canEditRules, isAdmin, json, jsonGz, unauthorized, forbidden, badRequest, notFound } from '../../_lib/auth.js'
 import { handleError } from '../../_lib/util.js'
 
 function parseMaps(maps) {
@@ -39,7 +39,7 @@ export async function onRequestGet(context) {
         return rest
       })
     }
-    return json({
+    return jsonGz({
       id: t.id,
       code: t.code,
       name: t.name,
@@ -56,9 +56,7 @@ export async function onRequestGet(context) {
   } catch (e) {
     return handleError(e)
   }
-}
-
-export async function onRequestPut(context) {
+}export async function onRequestPut(context) {
   const { request, env, params } = context
   const user = await currentUser(request, env)
   if (!user) return unauthorized()
