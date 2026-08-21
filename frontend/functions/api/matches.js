@@ -1,5 +1,5 @@
 // /api/matches — 比赛列表/创建
-import { currentUser, isAdmin, json, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
+import { currentUser, isAdmin, json, jsonGz, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
 import { resolveTournamentId, handleError } from '../_lib/util.js'
 import { formatMatchDetail, resolveTeamName, makeRoom, MATCH_STATUS } from '../_lib/match.js'
 
@@ -44,7 +44,7 @@ export async function onRequestGet(context) {
     }
     sql += ' ORDER BY group_id, round, seq, id'
     const rows = await env.DB.prepare(sql).bind(...params).all()
-    return json(rows.results || rows)
+    return jsonGz(rows.results || rows)
   } catch (e) {
     return handleError(e)
   }

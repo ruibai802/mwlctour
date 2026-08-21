@@ -1,6 +1,6 @@
 // /api/players — 选手名单列表(GET) / 新增(POST)
 // 子路径 teams/import/batch-delete 见独立文件
-import { currentUser, isAdmin, json, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
+import { currentUser, isAdmin, json, jsonGz, unauthorized, forbidden, badRequest } from '../_lib/auth.js'
 import { resolveTournamentId, handleError } from '../_lib/util.js'
 
 const FIELDS = ['team', 'name', 'fanbook', 'game_id', 'slot']
@@ -38,7 +38,7 @@ export async function onRequestGet(context) {
     } else {
       rows = await env.DB.prepare('SELECT * FROM players WHERE tournament_id = ? ORDER BY team, slot, id').bind(tid).all()
     }
-    return json(rows.results || rows)
+    return jsonGz(rows.results || rows)
   } catch (e) {
     return handleError(e)
   }

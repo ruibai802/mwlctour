@@ -101,3 +101,32 @@ export function json(data, status = 200) {
     headers: { 'Content-Type': 'application/json; charset=utf-8' }
   })
 }
+
+// gzip 压缩的 JSON 响应：减小传输体积，显著加快大接口（队伍/选手/日程列表）加载
+export async function jsonGz(data, status = 200) {
+  const text = JSON.stringify(data)
+  if (text.length < 1024) return json(data, status)
+  try {
+    // 优先 zlib 同步压缩（workerd 支持 nodejs_compat）；失败回退 CompressionStream
+    let buf = null
+    try {
+      const zlib = await import('node:zlib')
+      buf = zlib.gzipSync(Buffer.from(text, 'utf8'))
+    } catch (e) { /* fallthrough */ }
+    if (!buf) {
+      const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))
+      buf = await new Response(stream).arrayBuffer()
+    }
+    return new Response(buf, {
+      status,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Encoding': 'gzip',
+        'Vary': 'Accept-Encoding',
+        'Cache-Control': 'no-cache'
+      }
+    })
+  } catch (e) {
+    return json(data, status)
+  }
+}

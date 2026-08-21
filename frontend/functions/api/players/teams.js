@@ -1,5 +1,5 @@
 // GET /api/players/teams — 按队伍分组
-import { currentUser, json, unauthorized } from '../../_lib/auth.js'
+import { currentUser, jsonGz, unauthorized } from '../../_lib/auth.js'
 import { resolveTournamentId, handleError } from '../../_lib/util.js'
 
 export async function onRequestGet(context) {
@@ -14,7 +14,7 @@ export async function onRequestGet(context) {
       if (!teams[r.team]) teams[r.team] = { team: r.team, players: [] }
       teams[r.team].players.push(r)
     }
-    return json(Object.values(teams))
+    return jsonGz(Object.values(teams))
   } catch (e) {
     return handleError(e)
   }

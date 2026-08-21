@@ -3,6 +3,25 @@
 //  - 不设置（默认）→ 使用同源 /api（本地开发或与后端同域部署，由 vite/preview-server/nginx 代理）
 const BASE = (import.meta.env && import.meta.env.VITE_API_BASE) || '/api'
 
+// ===== 轻量内存缓存：低频变化的引用数据（队伍/分组/设置/选手）避免重复加载 =====
+const cacheTTL = 30 * 1000 // 30 秒
+const cacheStore = new Map()
+
+function cachedGet(key, fetcher) {
+  const hit = cacheStore.get(key)
+  if (hit && Date.now() - hit.t < cacheTTL) return hit.p
+  const p = fetcher().catch((e) => {
+    cacheStore.delete(key)
+    throw e
+  })
+  cacheStore.set(key, { t: Date.now(), p })
+  return p
+}
+
+function invalidate(...keys) {
+  for (const k of keys) cacheStore.delete(k)
+}
+
 async function request(path, options = {}) {
   const token = localStorage.getItem('mwlc_token')
   const headers = { ...(options.headers || {}) }
@@ -50,19 +69,20 @@ export const uploadEditorImage = (formData) => request('/uploads/editor-image', 
 export const deleteUpload = (id) => request(`/uploads/${id}`, { method: 'DELETE' })
 
 export const getPublicSettings = () => request('/settings/public')
-export const getSettings = () => request('/settings')
-export const updateSettings = (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) })
+export const getSettings = () => cachedGet('settings', () => request('/settings'))
+export const updateSettings = (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }).then((r) => { invalidate('settings'); return r })
 
 export const getPlayers = (params = {}) => {
   const q = new URLSearchParams(params).toString()
-  return request(`/players${q ? `?${q}` : ''}`)
+  const key = q ? 'players:' + q : 'players:all'
+  return cachedGet(key, () => request(`/players${q ? `?${q}` : ''}`))
 }
-export const getTeams = () => request('/players/teams')
-export const createPlayer = (data) => request('/players', { method: 'POST', body: JSON.stringify(data) })
-export const updatePlayer = (id, data) => request(`/players/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const deletePlayer = (id) => request(`/players/${id}`, { method: 'DELETE' })
-export const batchDeletePlayers = (ids) => request('/players/batch-delete', { method: 'POST', body: JSON.stringify({ ids }) })
-export const importPlayers = (list) => request('/players/import', { method: 'POST', body: JSON.stringify(list) })
+export const getTeams = () => cachedGet('playerTeams', () => request('/players/teams'))
+export const createPlayer = (data) => request('/players', { method: 'POST', body: JSON.stringify(data) }).then((r) => { invalidate('players:all', 'playerTeams', 'teams'); return r })
+export const updatePlayer = (id, data) => request(`/players/${id}`, { method: 'PUT', body: JSON.stringify(data) }).then((r) => { invalidate('players:all', 'playerTeams', 'teams'); return r })
+export const deletePlayer = (id) => request(`/players/${id}`, { method: 'DELETE' }).then((r) => { invalidate('players:all', 'playerTeams', 'teams'); return r })
+export const batchDeletePlayers = (ids) => request('/players/batch-delete', { method: 'POST', body: JSON.stringify({ ids }) }).then((r) => { invalidate('players:all', 'playerTeams', 'teams'); return r })
+export const importPlayers = (list) => request('/players/import', { method: 'POST', body: JSON.stringify(list) }).then((r) => { invalidate('players:all', 'playerTeams', 'teams'); return r })
 export const importMembers = (list) => request('/members/import', { method: 'POST', body: JSON.stringify(list) })
 
 export const getTournaments = () => request('/tournaments')
@@ -82,10 +102,10 @@ export const getRoleUsers = () => request('/roles/users')
 export const setUserRoles = (id, role_ids) => request(`/roles/users/${id}`, { method: 'PUT', body: JSON.stringify({ role_ids }) })
 
 // ===== 扩展模块：分组 =====
-export const getGroupList = () => request('/groups')
-export const createGroup = (data) => request('/groups', { method: 'POST', body: JSON.stringify(data) })
-export const updateGroup = (id, data) => request(`/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const deleteGroup = (id) => request(`/groups/${id}`, { method: 'DELETE' })
+export const getGroupList = () => cachedGet('groups', () => request('/groups'))
+export const createGroup = (data) => request('/groups', { method: 'POST', body: JSON.stringify(data) }).then((r) => { invalidate('groups'); return r })
+export const updateGroup = (id, data) => request(`/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }).then((r) => { invalidate('groups'); return r })
+export const deleteGroup = (id) => request(`/groups/${id}`, { method: 'DELETE' }).then((r) => { invalidate('groups'); return r })
 
 // ===== 扩展模块：工作人员与考勤 =====
 export const getStaff = (params = {}) => {
@@ -105,14 +125,14 @@ export const recordAttendance = (data) => request('/staff/attendance', { method:
 export const deleteAttendance = (id) => request(`/staff/attendance/${id}`, { method: 'DELETE' })
 
 // ===== 扩展模块：队伍与队员 =====
-export const getTeamList = () => request('/teams')
-export const createTeam = (data) => request('/teams', { method: 'POST', body: JSON.stringify(data) })
+export const getTeamList = () => cachedGet('teams', () => request('/teams'))
+export const createTeam = (data) => request('/teams', { method: 'POST', body: JSON.stringify(data) }).then((r) => { invalidate('teams', 'playerTeams'); return r })
 export const getTeamDetail = (id) => request(`/teams/${id}`)
-export const updateTeam = (id, data) => request(`/teams/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const deleteTeam = (id) => request(`/teams/${id}`, { method: 'DELETE' })
-export const addTeamPlayer = (teamId, data) => request(`/teams/${teamId}/players`, { method: 'POST', body: JSON.stringify(data) })
-export const updateTeamPlayer = (teamPlayerId, data) => request(`/teams/players/${teamPlayerId}`, { method: 'PUT', body: JSON.stringify(data) })
-export const removeTeamPlayer = (teamPlayerId) => request(`/teams/players/${teamPlayerId}`, { method: 'DELETE' })
+export const updateTeam = (id, data) => request(`/teams/${id}`, { method: 'PUT', body: JSON.stringify(data) }).then((r) => { invalidate('teams', 'playerTeams'); return r })
+export const deleteTeam = (id) => request(`/teams/${id}`, { method: 'DELETE' }).then((r) => { invalidate('teams', 'playerTeams'); return r })
+export const addTeamPlayer = (teamId, data) => request(`/teams/${teamId}/players`, { method: 'POST', body: JSON.stringify(data) }).then((r) => { invalidate('teams', 'playerTeams'); return r })
+export const updateTeamPlayer = (teamPlayerId, data) => request(`/teams/players/${teamPlayerId}`, { method: 'PUT', body: JSON.stringify(data) }).then((r) => { invalidate('teams', 'playerTeams'); return r })
+export const removeTeamPlayer = (teamPlayerId) => request(`/teams/players/${teamPlayerId}`, { method: 'DELETE' }).then((r) => { invalidate('teams', 'playerTeams'); return r })
 
 // ===== 扩展模块：比赛 =====
 export const getMatches = (params = {}) => {

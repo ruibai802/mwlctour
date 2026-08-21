@@ -134,12 +134,13 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
+    // 非管理员跳过工作人员/选手名单（详情页只需对阵名单，来自 getMatch）
     const [m, g, t, s, p, set] = await Promise.all([
       getMatch(route.params.id),
       getGroupList(),
       getTeamList(),
       auth.isAdmin ? getStaff() : Promise.resolve([]),
-      getPlayers(),
+      auth.isAdmin ? getPlayers() : Promise.resolve([]),
       getSettings()
     ])
     match.value = m
