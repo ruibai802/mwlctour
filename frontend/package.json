@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
+    "javascript-obfuscator": "^5.5.0",
     "vite": "^6.0.7"
   }
 }
