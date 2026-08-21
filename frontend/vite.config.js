@@ -21,6 +21,8 @@ function obfuscatePlugin() {
           rotateStringArray: true,
           // 变量名/函数名全部十六进制乱码
           identifierNamesGenerator: 'hexadecimal',
+          // 所有字符串（含数组字面量中的文案）转 unicode 转义，F12 下彻底不可读
+          unicodeEscapeSequence: true,
           // 关闭会破坏 Vue 运行时/体积爆炸的选项
           transformObjectKeys: false,
           controlFlowFlattening: false,
@@ -28,7 +30,6 @@ function obfuscatePlugin() {
           selfDefending: false,
           splitStrings: false,
           numbersToExpressions: false,
-          unicodeEscapeSequence: false,
           disableConsoleOutput: false,
           renameGlobals: false
         })
